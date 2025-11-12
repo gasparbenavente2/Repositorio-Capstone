@@ -34,20 +34,31 @@ float revM1 = 0;
 float degM0 = 0;
 float degM1 = 0;
 
-// Variables limit switches
-bool lim0WasPressed = false;
-bool lim1WasPressed = false;
+// Variables control PID motoes
+// ------------------- M1 -----------------------
+float control1;
+float old_control1 = 0;
+float error1;
+float error_old1 = 0;
+float error_old_old1 = 0;
 
-// PID params & state (per motor)
-float Kp0 = 1.0, Ki0 = 0.0, Kd0 = 0.0;   // tune these
-float integ0 = 0.0;
-float prevErr0 = 0.0;
+float KP_1 = 0;
+float KI_1 = 0;
+float KD_1 = 0;
 
-float Kp1 = 1.0, Ki1 = 0.0, Kd1 = 0.0;
-float integ1 = 0.0;
-float prevErr1 = 0.0;
+// ------------------- M2 -----------------------
+float control2;
+float old_control2 = 0;
+float error2;
+float error_old2 = 0;
+float error_old_old2 = 0;
 
-long setpoint0 = -1000;   // desired encoder counts (or computed from degrees)
+float KP_2 = 0;
+float KI_2 = 0;
+float KD_2 = 0;
+
+
+long setpoint0 = 0;   
 long setpoint1 = 0;
 
 // ---------------------------------------------------------------
@@ -120,7 +131,7 @@ void setup() {
   // Configurar Serial port
   Serial.begin(115200);                   // Inicializar el puerto serial (Monitor Serial)
   Serial.println("start");
-  Serial1.begin(9600);
+  Serial1.begin(9600);                  // Comunicacion serial sabertooth
 
   // Configurar limit switch
   pinMode(LIM0_PIN, INPUT_PULLUP);   // NC to GND → reads LOW normally
@@ -179,43 +190,24 @@ void loop() {
       oldposition1 = newposition1;
       revM0 = float(newposition0) / float(divM0);
       revM1 = float(newposition1) / float(divM1);
-      degM0 = revM0 * 360;
-      degM1 = revM1 * 360;
+      degM0 = revM0 * 360;  // Grados a los que está eslabon 0
+      degM1 = revM1 * 360;  // Grados a los que está eslabon 1
 
       // --- Motor 0 PID ---
-      float err0 = (float)setpoint0 - (float)newposition0;
-      integ0 += err0 * sampleTime_s;                      // integrator
-      float integMax = 10000.0; // choose large value based on Ki
-      if (integ0 > integMax) integ0 = integMax;
-      if (integ0 < -integMax) integ0 = -integMax;
-      float deriv0 = (err0 - prevErr0) / sampleTime_s;
-      float output0f = Kp0 * err0 + Ki0 * integ0 + Kd0 * deriv0;
-      prevErr0 = err0;
+
 
       // clamp output to allowed command range
-      if (output0f > CMD_MAX) output0f = CMD_MAX;
-      if (output0f < CMD_MIN) output0f = CMD_MIN;
-      int output0 = (int) output0f;
+
 
       // --- Motor 1 PID (same pattern) ---
-      float err1 = (float)setpoint1 - (float)newposition1;
-      integ1 += err1 * sampleTime_s;
-      float integMax = 10000.0; // choose large value based on Ki
-      if (integ1 > integMax) integ1 = integMax;
-      if (integ1 < -integMax) integ1 = -integMax;
-      float deriv1 = (err1 - prevErr1) / sampleTime_s;
-      float output1f = Kp1 * err1 + Ki1 * integ1 + Kd1 * deriv1;
-      prevErr1 = err1;
-      if (output1f > CMD_MAX) output1f = CMD_MAX;
-      if (output1f < CMD_MIN) output1f = CMD_MIN;
-      int output1 = (int) output1f;
+
 
       // clamp output to allowed command range
       if (output1f > CMD_MAX) output1f = CMD_MAX;
       if (output1f < CMD_MIN) output1f = CMD_MIN;
       int output1 = (int) output1f;
 
-      // Mandar mensajes a motor
+      // Mandar mensajes a sabertooth
       // Serial1.print("M1:"); Serial1.println(output0);
       // Serial1.print("M2:"); Serial1.println(output1);
 
