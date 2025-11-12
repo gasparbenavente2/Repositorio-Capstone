@@ -1,0 +1,244 @@
+// Definición de PINs.
+// Encoders
+#define encoder0PinA  21    // Yellow
+#define encoder0PinB  2     // White
+#define encoder1PinA  20    // Yellow
+#define encoder1PinB  3     // White        // Green GND, Blue 5V
+
+// Limit switches
+#define LIM0_PIN 24         // Green
+#define LIM1_PIN 25         // Green
+
+// Sabertooth
+// 5V a 18 Arduino
+
+// Variables Tiempo
+unsigned long time_ant = 0;
+const int Period = 10000;                   // 10 ms = 100Hz
+const float dt = Period *0.000001f;
+
+// Variables de los Encoders y posicion
+volatile long encoder0Pos = 0;
+volatile long encoder1Pos = 0;
+long newposition0;
+long oldposition0 = 0;
+long newposition1;
+long oldposition1 = 0;
+unsigned long newtime;
+float vel0;
+float vel1;
+const long divM0 = 1920L * 28L;
+const long divM1 = 1920L * 18L;
+float revM0 = 0;
+float revM1 = 0;
+float degM0 = 0;
+float degM1 = 0;
+
+// Variables limit switches
+bool lim0WasPressed = false;
+bool lim1WasPressed = false;
+
+// PID params & state (per motor)
+float Kp0 = 1.0, Ki0 = 0.0, Kd0 = 0.0;   // tune these
+float integ0 = 0.0;
+float prevErr0 = 0.0;
+
+float Kp1 = 1.0, Ki1 = 0.0, Kd1 = 0.0;
+float integ1 = 0.0;
+float prevErr1 = 0.0;
+
+long setpoint0 = -1000;   // desired encoder counts (or computed from degrees)
+long setpoint1 = 0;
+
+// ---------------------------------------------------------------
+// Transformar setpoint a grados. 
+long counts_per_rev = divM0; // you already have divM0
+float desired_deg = 90.0;
+setpoint0 = (long)( (desired_deg/360.0) * counts_per_rev );
+// ---------------------------------------------------------------
+// HACER: Hacer para 0 y 1. Hacer para position en loop principal
+
+const int CMD_MAX = 320;   // max command magnitude you send to Sabertooth (adjust)
+const int CMD_MIN = -320;
+
+const float sampleTime_s = 0.010f; // sample time in seconds (match your loop; 10 ms = 0.01)
+
+
+// CONFIGURANDO INTERRUPCIONES
+void doEncoder0A()
+{
+  if (digitalRead(encoder0PinA) == digitalRead(encoder0PinB)) {
+    encoder0Pos--;
+  } else {
+    encoder0Pos++;
+  }
+}
+
+void doEncoder0B()
+{
+  if (digitalRead(encoder0PinA) == digitalRead(encoder0PinB)) {
+    encoder0Pos++;
+  } else {
+    encoder0Pos--;
+  }
+}
+
+void doEncoder1A()
+{
+  if (digitalRead(encoder1PinA) == digitalRead(encoder1PinB)) {
+    encoder1Pos--;
+  } else {
+    encoder1Pos++;
+  }
+}
+
+void doEncoder1B()
+{
+  if (digitalRead(encoder1PinA) == digitalRead(encoder1PinB)) {
+    encoder1Pos++;
+  } else {
+    encoder1Pos--;
+  }
+}
+
+
+void setup() {
+  // Configurar Encoders
+  pinMode(encoder0PinA, INPUT);
+  digitalWrite(encoder0PinA, HIGH);       // Incluir una resistencia de pullup en le entrada
+  pinMode(encoder0PinB, INPUT);
+  digitalWrite(encoder0PinB, HIGH);       // Incluir una resistencia de pullup en le entrada
+  pinMode(encoder1PinA, INPUT);
+  digitalWrite(encoder1PinA, HIGH);       // Incluir una resistencia de pullup en le entrada
+  pinMode(encoder1PinB, INPUT);
+  digitalWrite(encoder1PinB, HIGH);       // Incluir una resistencia de pullup en le entrada
+  attachInterrupt(digitalPinToInterrupt(encoder0PinA), doEncoder0A, CHANGE);  // encoder 0 PIN A
+  attachInterrupt(digitalPinToInterrupt(encoder0PinB), doEncoder0B, CHANGE);  // encoder 0 PIN B
+  attachInterrupt(digitalPinToInterrupt(encoder1PinA), doEncoder1A, CHANGE);  // encoder 1 PIN A
+  attachInterrupt(digitalPinToInterrupt(encoder1PinB), doEncoder1B, CHANGE);  // encoder 1 PIN B
+
+  // Configurar Serial port
+  Serial.begin(115200);                   // Inicializar el puerto serial (Monitor Serial)
+  Serial.println("start");
+  Serial1.begin(9600);
+
+  // Configurar limit switch
+  pinMode(LIM0_PIN, INPUT_PULLUP);   // NC to GND → reads LOW normally
+  pinMode(LIM0_PIN, INPUT_PULLUP);
+  lim0WasPressed = (digitalRead(LIM0_PIN) == LOW);
+  lim1WasPressed = (digitalRead(LIM1_PIN) == LOW);
+}
+
+void loop() {
+  if ((micros() - time_ant) >= Period)
+    {
+      newtime = micros();
+
+      // Check limit switches
+      bool lim0Pressed = (digitalRead(LIM0_PIN) == LOW);
+      bool lim1Pressed = (digitalRead(LIM1_PIN) == LOW);
+
+      if (lim0Pressed && !lim0WasPressed) {
+        // reset encoder0 safely
+        noInterrupts();
+        encoder0Pos = 0;
+        interrupts();
+        oldposition0 = 0;
+        integ0 = 0.0;        // reset integrator to avoid jump
+        prevErr0 = 0.0;
+        Serial.println("LIM0 pressed");
+      }
+
+      if (lim1Pressed && !lim1WasPressed) {
+        // reset encoder1 safely
+        noInterrupts();
+        encoder1Pos = 0;
+        interrupts();
+        oldposition1 = 0;
+        integ1 = 0.0;        // reset integrator to avoid jump
+        prevErr1 = 0.0;
+        Serial.println("LIM1 pressed");
+      }
+
+      lim0WasPressed = lim0Pressed;
+      lim1WasPressed = lim1Pressed;
+
+      // Actualizando Informacion de los encoders
+      noInterrupts();
+      long pos0 = encoder0Pos;
+      long pos1 = encoder1Pos;
+      interrupts();
+      newposition0 = pos0;
+      newposition1 = pos1;
+
+      // Calculando Velocidad del motor en unidades de RPM
+      float rpm = 31250;
+      vel0 = (float)(newposition0 - oldposition0) * rpm / (newtime - time_ant);     //RPM
+      vel1 = (float)(newposition1 - oldposition1) * rpm / (newtime - time_ant);     //RPM
+      oldposition0 = newposition0;
+      oldposition1 = newposition1;
+      revM0 = float(newposition0) / float(divM0);
+      revM1 = float(newposition1) / float(divM1);
+      degM0 = revM0 * 360;
+      degM1 = revM1 * 360;
+
+      // --- Motor 0 PID ---
+      float err0 = (float)setpoint0 - (float)newposition0;
+      integ0 += err0 * sampleTime_s;                      // integrator
+      float integMax = 10000.0; // choose large value based on Ki
+      if (integ0 > integMax) integ0 = integMax;
+      if (integ0 < -integMax) integ0 = -integMax;
+      float deriv0 = (err0 - prevErr0) / sampleTime_s;
+      float output0f = Kp0 * err0 + Ki0 * integ0 + Kd0 * deriv0;
+      prevErr0 = err0;
+
+      // clamp output to allowed command range
+      if (output0f > CMD_MAX) output0f = CMD_MAX;
+      if (output0f < CMD_MIN) output0f = CMD_MIN;
+      int output0 = (int) output0f;
+
+      // --- Motor 1 PID (same pattern) ---
+      float err1 = (float)setpoint1 - (float)newposition1;
+      integ1 += err1 * sampleTime_s;
+      float integMax = 10000.0; // choose large value based on Ki
+      if (integ1 > integMax) integ1 = integMax;
+      if (integ1 < -integMax) integ1 = -integMax;
+      float deriv1 = (err1 - prevErr1) / sampleTime_s;
+      float output1f = Kp1 * err1 + Ki1 * integ1 + Kd1 * deriv1;
+      prevErr1 = err1;
+      if (output1f > CMD_MAX) output1f = CMD_MAX;
+      if (output1f < CMD_MIN) output1f = CMD_MIN;
+      int output1 = (int) output1f;
+
+      // clamp output to allowed command range
+      if (output1f > CMD_MAX) output1f = CMD_MAX;
+      if (output1f < CMD_MIN) output1f = CMD_MIN;
+      int output1 = (int) output1f;
+
+      // Mandar mensajes a motor
+      // Serial1.print("M1:"); Serial1.println(output0);
+      // Serial1.print("M2:"); Serial1.println(output1);
+
+      // Reportar datos
+      Serial.print("pos0: ");
+      Serial.print(newposition0);
+      Serial.print(",  ");
+      Serial.print("pos1: ");
+      Serial.print(newposition1);
+      Serial.print(",  ");
+      Serial.print("degM0: ");
+      Serial.print(degM0);
+      Serial.print(",  ");
+      Serial.print("degM1: ");
+      Serial.print(degM1);
+      Serial.print(",");
+      Serial.print("output0: ");
+      Serial.print(output0);
+      Serial.print(",  ");
+      Serial.print("output1: ");
+      Serial.print(output1);
+      Serial.println(",  ");
+
+      time_ant = newtime;
+    }
+}
