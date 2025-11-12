@@ -138,9 +138,9 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(encoder1PinB), doEncoder1B, CHANGE);  // encoder 1 PIN B
 
   // Configurar Serial port
-  Serial.begin(115200);                   // Inicializar el puerto serial (Monitor Serial)
+  Serial.begin(38400);                   // Inicializar el puerto serial (Monitor Serial)
   Serial.println("start");
-  Serial1.begin(119200);                  // Comunicacion serial sabertooth
+  Serial1.begin(38400);                  // Comunicacion serial sabertooth
 
   // Configurar limit switch
   pinMode(LIM0_PIN, INPUT_PULLUP);   // NC to GND → reads LOW normally
@@ -213,9 +213,7 @@ void loop() {
       control2 = clip(control2, CMD_MIN, CMD_MAX);
 
       // Mandar mensajes a sabertooth
-      control2 = -0;
-      Serial1.print("M1:"); Serial1.println(control1);
-      Serial1.print("M2:"); Serial1.println(control2);
+
 
 
       // Actualización variables para siguiente ciclo
@@ -227,24 +225,31 @@ void loop() {
       old_control2 = control2;
 
       // Reportar datos
-      Serial.print("pos0: ");
-      Serial.print(newposition0);
-      Serial.print(",  ");
-      Serial.print("pos1: ");
-      Serial.print(newposition1);
-      Serial.print(",  ");
-      Serial.print("degM0: ");
-      Serial.print(degM0);
-      Serial.print(",  ");
-      Serial.print("degM1: ");
-      Serial.print(degM1);
-      Serial.print(",");
-      Serial.print("output0: ");
-      Serial.print(control1);
-      Serial.print(",  ");
-      Serial.print("output1: ");
-      Serial.print(control2);
-      Serial.println(",  ");
+      // Serial.print("pos0: ");
+      // Serial.print(newposition0);
+      // Serial.print(",  ");
+      // Serial.print("pos1: ");
+      // Serial.print(newposition1);
+      // Serial.print(",  ");
+      // Serial.print("degM0: ");
+      // Serial.print(degM0);
+      // Serial.print(",  ");
+      // Serial.print("degM1: ");
+      // Serial.print(degM1);
+      // Serial.print(",");
+      // Serial.print("output0: ");
+      // Serial.print(control1);
+      // Serial.print(",  ");
+      // Serial.print("output1: ");
+      // Serial.print(control2);
+      // Serial.println(",  ");
+
+      control2 = 50;
+      // Serial.print("M1:"); Serial.println(int(control1));
+      // Serial.print("M2:"); Serial.println(int(control2));
+      // Serial1.print("M1:"); Serial1.println(int(control1));
+      // Serial1.print("M2:"); Serial1.println(int(control2));
+      Serial1.println("M2:150"); 
 
       time_ant = newtime;
     }
