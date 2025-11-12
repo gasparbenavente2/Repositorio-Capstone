@@ -8,6 +8,10 @@
 // Limit switches
 #define LIM0_PIN 24         // Green
 #define LIM1_PIN 25         // Green
+bool lim0Pressed;
+bool lim1Pressed;
+bool lim0WasPressed;
+bool lim1WasPressed;
 
 // Sabertooth
 // 5V a 18 Arduino
@@ -53,27 +57,32 @@ float error2;
 float error_old2 = 0;
 float error_old_old2 = 0;
 
-float KP_2 = 0;
+float KP_2 = 1;
 float KI_2 = 0;
 float KD_2 = 0;
 
 
 long setpoint0 = 0;   
-long setpoint1 = 0;
+long setpoint1 = -0;
 
 // ---------------------------------------------------------------
 // Transformar setpoint a grados. 
-long counts_per_rev = divM0; // you already have divM0
-float desired_deg = 90.0;
-setpoint0 = (long)( (desired_deg/360.0) * counts_per_rev );
+// long counts_per_rev = divM0; // you already have divM0
+// float desired_deg = 90.0;
+// setpoint0 = (long)( (desired_deg/360.0) * counts_per_rev );
 // ---------------------------------------------------------------
 // HACER: Hacer para 0 y 1. Hacer para position en loop principal
 
-const int CMD_MAX = 320;   // max command magnitude you send to Sabertooth (adjust)
-const int CMD_MIN = -320;
+const int CMD_MAX = 100;   // max command magnitude you send to Sabertooth (adjust)
+const int CMD_MIN = -50;
 
 const float sampleTime_s = 0.010f; // sample time in seconds (match your loop; 10 ms = 0.01)
 
+float clip(float value, float minVal, float maxVal) {
+  if (value > maxVal) return maxVal;
+  if (value < minVal) return minVal;
+  return value;
+}
 
 // CONFIGURANDO INTERRUPCIONES
 void doEncoder0A()
@@ -131,7 +140,7 @@ void setup() {
   // Configurar Serial port
   Serial.begin(115200);                   // Inicializar el puerto serial (Monitor Serial)
   Serial.println("start");
-  Serial1.begin(9600);                  // Comunicacion serial sabertooth
+  Serial1.begin(119200);                  // Comunicacion serial sabertooth
 
   // Configurar limit switch
   pinMode(LIM0_PIN, INPUT_PULLUP);   // NC to GND → reads LOW normally
@@ -155,8 +164,8 @@ void loop() {
         encoder0Pos = 0;
         interrupts();
         oldposition0 = 0;
-        integ0 = 0.0;        // reset integrator to avoid jump
-        prevErr0 = 0.0;
+        // integ0 = 0.0;        // reset integrator to avoid jump
+        // prevErr0 = 0.0;
         Serial.println("LIM0 pressed");
       }
 
@@ -166,8 +175,8 @@ void loop() {
         encoder1Pos = 0;
         interrupts();
         oldposition1 = 0;
-        integ1 = 0.0;        // reset integrator to avoid jump
-        prevErr1 = 0.0;
+        // integ1 = 0.0;        // reset integrator to avoid jump
+        // prevErr1 = 0.0;
         Serial.println("LIM1 pressed");
       }
 
@@ -194,22 +203,28 @@ void loop() {
       degM1 = revM1 * 360;  // Grados a los que está eslabon 1
 
       // --- Motor 0 PID ---
-
-
-      // clamp output to allowed command range
-
+      error1 = setpoint0 - degM0;
+      control1 = old_control1 + (KP_1 + dt * KI_1 + KD_1 / dt) * error1 + (-KP_1 - (2 * KD_1) / dt) * error_old1 + (KD_1 / dt) * error_old_old1;
+      control1 = clip(control1, CMD_MIN, CMD_MAX); // Clipping
 
       // --- Motor 1 PID (same pattern) ---
-
-
-      // clamp output to allowed command range
-      if (output1f > CMD_MAX) output1f = CMD_MAX;
-      if (output1f < CMD_MIN) output1f = CMD_MIN;
-      int output1 = (int) output1f;
+      error2 = setpoint1 - degM1;
+      control2 = old_control2 + (KP_2 + dt * KI_2 + KD_2 / dt) * error2 + (-KP_2 - (2 * KD_2) / dt) * error_old2 + (KD_2 / dt) * error_old_old2;
+      control2 = clip(control2, CMD_MIN, CMD_MAX);
 
       // Mandar mensajes a sabertooth
-      // Serial1.print("M1:"); Serial1.println(output0);
-      // Serial1.print("M2:"); Serial1.println(output1);
+      control2 = -0;
+      Serial1.print("M1:"); Serial1.println(control1);
+      Serial1.print("M2:"); Serial1.println(control2);
+
+
+      // Actualización variables para siguiente ciclo
+      error_old_old1 = error_old1;
+      error_old1 = error1;
+      old_control1 = control1;
+      error_old_old2 = error_old2;
+      error_old2 = error2;
+      old_control2 = control2;
 
       // Reportar datos
       Serial.print("pos0: ");
@@ -225,10 +240,10 @@ void loop() {
       Serial.print(degM1);
       Serial.print(",");
       Serial.print("output0: ");
-      Serial.print(output0);
+      Serial.print(control1);
       Serial.print(",  ");
       Serial.print("output1: ");
-      Serial.print(output1);
+      Serial.print(control2);
       Serial.println(",  ");
 
       time_ant = newtime;
