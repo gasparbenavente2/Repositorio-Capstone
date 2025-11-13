@@ -57,21 +57,13 @@ float error2;
 float error_old2 = 0;
 float error_old_old2 = 0;
 
-float KP_2 = 1;
-float KI_2 = 0;
+float KP_2 = 0.3;
+float KI_2 = 0.03;
 float KD_2 = 0;
 
 
 long setpoint0 = 0;   
-long setpoint1 = -0;
-
-// ---------------------------------------------------------------
-// Transformar setpoint a grados. 
-// long counts_per_rev = divM0; // you already have divM0
-// float desired_deg = 90.0;
-// setpoint0 = (long)( (desired_deg/360.0) * counts_per_rev );
-// ---------------------------------------------------------------
-// HACER: Hacer para 0 y 1. Hacer para position en loop principal
+long setpoint1 = -90;
 
 const int CMD_MAX = 100;   // max command magnitude you send to Sabertooth (adjust)
 const int CMD_MIN = -50;
@@ -175,8 +167,8 @@ void loop() {
         encoder1Pos = 0;
         interrupts();
         oldposition1 = 0;
-        // integ1 = 0.0;        // reset integrator to avoid jump
-        // prevErr1 = 0.0;
+        // error2 = 0.0;        // reset integrator to avoid jump
+        // error_old2 = 0.0;
         Serial.println("LIM1 pressed");
       }
 
@@ -211,6 +203,7 @@ void loop() {
       error2 = setpoint1 - degM1;
       control2 = old_control2 + (KP_2 + dt * KI_2 + KD_2 / dt) * error2 + (-KP_2 - (2 * KD_2) / dt) * error_old2 + (KD_2 / dt) * error_old_old2;
       control2 = clip(control2, CMD_MIN, CMD_MAX);
+      int control2int = int(control2);
 
       // Mandar mensajes a sabertooth
 
@@ -231,25 +224,28 @@ void loop() {
       // Serial.print("pos1: ");
       // Serial.print(newposition1);
       // Serial.print(",  ");
-      // Serial.print("degM0: ");
-      // Serial.print(degM0);
-      // Serial.print(",  ");
-      // Serial.print("degM1: ");
-      // Serial.print(degM1);
-      // Serial.print(",");
-      // Serial.print("output0: ");
-      // Serial.print(control1);
-      // Serial.print(",  ");
-      // Serial.print("output1: ");
-      // Serial.print(control2);
-      // Serial.println(",  ");
+      Serial.print("degM0: ");
+      Serial.print(degM0);
+      Serial.print(",  ");
+      Serial.print("degM1: ");
+      Serial.print(degM1);
+      Serial.print(",  ");
+      Serial.print("output0: ");
+      Serial.print(control1);
+      Serial.print(",  ");
+      Serial.print("output1: ");
+      Serial.print(control2int);
+      Serial.println(",  ");
 
-      control2 = 50;
       // Serial.print("M1:"); Serial.println(int(control1));
       // Serial.print("M2:"); Serial.println(int(control2));
       // Serial1.print("M1:"); Serial1.println(int(control1));
-      // Serial1.print("M2:"); Serial1.println(int(control2));
-      Serial1.println("M2:150"); 
+
+      String cmd = "M2:" + String(control2int);
+
+      Serial1.println(cmd);
+      Serial1.println("M1:0");
+      //Serial1.println("M2:0");
 
       time_ant = newtime;
     }
