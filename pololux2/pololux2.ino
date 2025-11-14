@@ -57,16 +57,16 @@ float error2;
 float error_old2 = 0;
 float error_old_old2 = 0;
 
-float KP_2 = 0.3;
-float KI_2 = 0.03;
+float KP_2 = 1.5;
+float KI_2 = 0.15;
 float KD_2 = 0;
 
 
-long setpoint0 = 0;   
-long setpoint1 = -90;
+float setpoint0 = 0;   
+float setpoint1 = -45;
 
-const int CMD_MAX = 100;   // max command magnitude you send to Sabertooth (adjust)
-const int CMD_MIN = -50;
+const int CMD_MAX = 150;   // max command magnitude you send to Sabertooth (adjust)
+const int CMD_MIN = -150;
 
 const float sampleTime_s = 0.010f; // sample time in seconds (match your loop; 10 ms = 0.01)
 
@@ -136,7 +136,7 @@ void setup() {
 
   // Configurar limit switch
   pinMode(LIM0_PIN, INPUT_PULLUP);   // NC to GND → reads LOW normally
-  pinMode(LIM0_PIN, INPUT_PULLUP);
+  pinMode(LIM1_PIN, INPUT_PULLUP);
   lim0WasPressed = (digitalRead(LIM0_PIN) == LOW);
   lim1WasPressed = (digitalRead(LIM1_PIN) == LOW);
 }
@@ -184,9 +184,9 @@ void loop() {
       newposition1 = pos1;
 
       // Calculando Velocidad del motor en unidades de RPM
-      float rpm = 31250;
-      vel0 = (float)(newposition0 - oldposition0) * rpm / (newtime - time_ant);     //RPM
-      vel1 = (float)(newposition1 - oldposition1) * rpm / (newtime - time_ant);     //RPM
+      // float rpm = 31250;
+      // vel0 = (float)(newposition0 - oldposition0) * rpm / (newtime - time_ant);     //RPM
+      // vel1 = (float)(newposition1 - oldposition1) * rpm / (newtime - time_ant);     //RPM
       oldposition0 = newposition0;
       oldposition1 = newposition1;
       revM0 = float(newposition0) / float(divM0);
