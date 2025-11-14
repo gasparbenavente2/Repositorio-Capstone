@@ -39,6 +39,8 @@ float degM0 = 0;
 float degM1 = 0;
 
 // Variables control PID motoes
+int firstPID = true;
+
 // ------------------- M1 -----------------------
 float control1;
 float old_control1 = 0;
@@ -57,13 +59,13 @@ float error2;
 float error_old2 = 0;
 float error_old_old2 = 0;
 
-float KP_2 = 1.5;
-float KI_2 = 0.15;
-float KD_2 = 0;
+float KP_2 = 3;
+float KI_2 = 0.2;
+float KD_2 = 0.01;
 
 
 float setpoint0 = 0;   
-float setpoint1 = -45;
+float setpoint1 = 60;
 
 const int CMD_MAX = 150;   // max command magnitude you send to Sabertooth (adjust)
 const int CMD_MIN = -150;
@@ -144,6 +146,15 @@ void setup() {
 void loop() {
   if ((micros() - time_ant) >= Period)
     {
+      if (firstPID) {
+        // inicializar errores previos para evitar derivative kick
+        error_old1 = error1;
+        error_old_old1 = error1;
+        error_old2 = error2;
+        error_old_old2 = error2;
+        firstPID = false;
+      }
+
       newtime = micros();
 
       // Check limit switches
