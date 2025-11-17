@@ -60,15 +60,15 @@ float error_old2 = 0;
 float error_old_old2 = 0;
 
 float KP_2 = 3;
-float KI_2 = 0.2;
-float KD_2 = 0.01;
+float KI_2 = 0.35;
+float KD_2 = 0.02;
 
 
 float setpoint0 = 0;   
-float setpoint1 = 60;
+float setpoint1 = -30;
 
-const int CMD_MAX = 150;   // max command magnitude you send to Sabertooth (adjust)
-const int CMD_MIN = -150;
+const int CMD_MAX = 200;   // max command magnitude you send to Sabertooth (adjust)
+const int CMD_MIN = -180;
 
 const float sampleTime_s = 0.010f; // sample time in seconds (match your loop; 10 ms = 0.01)
 
@@ -255,7 +255,7 @@ void loop() {
       String cmd = "M2:" + String(control2int);
 
       Serial1.println(cmd);
-      Serial1.println("M1:0");
+      Serial1.println("M1:100");
       //Serial1.println("M2:0");
 
       time_ant = newtime;
