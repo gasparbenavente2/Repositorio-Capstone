@@ -6,8 +6,8 @@
 #define encoder1PinB  3     // White        // Green GND, Blue 5V
 
 // Limit switches
-#define LIM0_PIN 24         // Green
-#define LIM1_PIN 25         // Green
+#define LIM0_PIN 25         // Green
+#define LIM1_PIN 24         // Green
 bool lim0Pressed;
 bool lim1Pressed;
 bool lim0WasPressed;
@@ -48,9 +48,9 @@ float error1;
 float error_old1 = 0;
 float error_old_old1 = 0;
 
-float KP_1 = 0;
-float KI_1 = 0;
-float KD_1 = 0;
+float KP_1 = 8;
+float KI_1 = 1.5;
+float KD_1 = 0.05;
 
 // ------------------- M2 -----------------------
 float control2;
@@ -64,11 +64,11 @@ float KI_2 = 0.35;
 float KD_2 = 0.02;
 
 
-float setpoint0 = 0;   
-float setpoint1 = -30;
+float setpoint0 = 0;
+float setpoint1 = 0;
 
-const int CMD_MAX = 200;   // max command magnitude you send to Sabertooth (adjust)
-const int CMD_MIN = -180;
+const int CMD_MAX = 400;   // max command magnitude you send to Sabertooth (adjust)
+const int CMD_MIN = -250;
 
 const float sampleTime_s = 0.010f; // sample time in seconds (match your loop; 10 ms = 0.01)
 
@@ -209,6 +209,7 @@ void loop() {
       error1 = setpoint0 - degM0;
       control1 = old_control1 + (KP_1 + dt * KI_1 + KD_1 / dt) * error1 + (-KP_1 - (2 * KD_1) / dt) * error_old1 + (KD_1 / dt) * error_old_old1;
       control1 = clip(control1, CMD_MIN, CMD_MAX); // Clipping
+      int control1int = int(control1);
 
       // --- Motor 1 PID (same pattern) ---
       error2 = setpoint1 - degM1;
@@ -229,33 +230,24 @@ void loop() {
       old_control2 = control2;
 
       // Reportar datos
-      // Serial.print("pos0: ");
-      // Serial.print(newposition0);
-      // Serial.print(",  ");
-      // Serial.print("pos1: ");
-      // Serial.print(newposition1);
-      // Serial.print(",  ");
-      Serial.print("degM0: ");
+      Serial.print("pos 1: ");
       Serial.print(degM0);
       Serial.print(",  ");
-      Serial.print("degM1: ");
+      Serial.print("pos 2: ");
       Serial.print(degM1);
       Serial.print(",  ");
-      Serial.print("output0: ");
-      Serial.print(control1);
+      Serial.print("output 1: ");
+      Serial.print(control1int);
       Serial.print(",  ");
-      Serial.print("output1: ");
+      Serial.print("output 2: ");
       Serial.print(control2int);
       Serial.println(",  ");
 
-      // Serial.print("M1:"); Serial.println(int(control1));
-      // Serial.print("M2:"); Serial.println(int(control2));
-      // Serial1.print("M1:"); Serial1.println(int(control1));
+      String cmd1 = "M1:" + String(control1int);
+      String cmd2 = "M2:" + String(control2int);
 
-      String cmd = "M2:" + String(control2int);
-
-      Serial1.println(cmd);
-      Serial1.println("M1:100");
+      Serial1.println(cmd2);
+      Serial1.println(cmd1);
       //Serial1.println("M2:0");
 
       time_ant = newtime;
