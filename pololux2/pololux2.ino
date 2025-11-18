@@ -1,3 +1,13 @@
+#include <Servo.h>
+
+// Servo 1
+Servo servo1;
+int s1pos1 = 85;               // current angle
+int s1pos1limit = 30;
+
+// Servo 2
+Servo servo2;
+
 // Definición de PINs.
 // Encoders
 #define encoder0PinA  21    // Yellow
@@ -60,12 +70,11 @@ float error_old2 = 0;
 float error_old_old2 = 0;
 
 float KP_2 = 3;
-float KI_2 = 0.35;
+float KI_2 = 0.8;
 float KD_2 = 0.02;
 
-
-float setpoint0 = 0;
-float setpoint1 = 0;
+float setpoint0 = -15;
+float setpoint1 = -15;
 
 const int CMD_MAX = 400;   // max command magnitude you send to Sabertooth (adjust)
 const int CMD_MIN = -250;
@@ -141,6 +150,22 @@ void setup() {
   pinMode(LIM1_PIN, INPUT_PULLUP);
   lim0WasPressed = (digitalRead(LIM0_PIN) == LOW);
   lim1WasPressed = (digitalRead(LIM1_PIN) == LOW);
+
+  // Servo 1
+  servo1.attach(9);
+  delay(1000);
+
+  servo1.write(s1pos1);
+  delay(1000);
+
+  // Servo 2
+  servo2.attach(8);
+  delay(1000);
+  servo2.write(60);
+  delay(2000);
+  servo2.write(75);
+  delay(2000);
+  servo2.write(60);
 }
 
 void loop() {
@@ -248,7 +273,12 @@ void loop() {
 
       Serial1.println(cmd2);
       Serial1.println(cmd1);
-      //Serial1.println("M2:0");
+
+      // Servo 1
+      if (s1pos1 > s1pos1limit) {
+        s1pos1--;
+        servo1.write(s1pos1);
+      }
 
       time_ant = newtime;
     }
