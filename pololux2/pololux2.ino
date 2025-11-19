@@ -2,8 +2,8 @@
 
 // Servo 1
 Servo servo1;
-int s1pos1 = 85;               // current angle
-int s1pos1limit = 30;
+int s1pos1 = 130;               // current angle
+int s1pos1limit = 80;
 
 // Servo 2
 Servo servo2;
@@ -67,14 +67,14 @@ float control2;
 float old_control2 = 0;
 float error2;
 float error_old2 = 0;
-float error_old_old2 = 0;
+float error_old_old2 = 0; 
 
 float KP_2 = 3;
 float KI_2 = 0.8;
 float KD_2 = 0.02;
 
 float setpoint0 = -15;
-float setpoint1 = -15;
+float setpoint1 = 15;
 
 const int CMD_MAX = 400;   // max command magnitude you send to Sabertooth (adjust)
 const int CMD_MIN = -250;
@@ -143,7 +143,7 @@ void setup() {
   // Configurar Serial port
   Serial.begin(38400);                   // Inicializar el puerto serial (Monitor Serial)
   Serial.println("start");
-  Serial1.begin(38400);                  // Comunicacion serial sabertooth
+  Serial1.begin(9600);                  // Comunicacion serial sabertooth
 
   // Configurar limit switch
   pinMode(LIM0_PIN, INPUT_PULLUP);   // NC to GND → reads LOW normally
