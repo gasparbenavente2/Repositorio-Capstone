@@ -58,9 +58,9 @@ float error1;
 float error_old1 = 0;
 float error_old_old1 = 0;
 
-float KP_1 = 8;
-float KI_1 = 1.5;
-float KD_1 = 0.05;
+float KP_1 = 12;
+float KI_1 = 4.5;
+float KD_1 = 0.08;
 
 // ------------------- M2 -----------------------
 float control2;
@@ -69,12 +69,12 @@ float error2;
 float error_old2 = 0;
 float error_old_old2 = 0; 
 
-float KP_2 = 3;
-float KI_2 = 0.8;
-float KD_2 = 0.02;
+float KP_2 = 30;
+float KI_2 = 9.5;
+float KD_2 = 0.01;
 
-float setpoint0 = -15;
-float setpoint1 = 15;
+float setpoint0 = -20;
+float setpoint1 = -30;
 
 const int CMD_MAX = 400;   // max command magnitude you send to Sabertooth (adjust)
 const int CMD_MIN = -250;
