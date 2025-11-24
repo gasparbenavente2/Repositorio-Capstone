@@ -48,8 +48,24 @@ float revM1 = 0;
 float degM0 = 0;
 float degM1 = 0;
 
+// Control macro
+bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
+float PID_control = false;
+bool print_control = true; // imprimir señales en terminal
+float setpoint0 = -30;     // eslabon 1
+float setpoint1 = 30;  // eslabon 2
+
+// homing
+bool homing_m1 = true;  // No modificar
+bool homing_m2 = true;  // No modificar
+int homing_m1_speed = 320;
+int homing_m2_speed = -60;
+
+
 // Variables control PID motoes
 int firstPID = true;
+float pos_tol = 0.1; // Valor al que se considera alcanzado el angulo
+int max_integrador = 100; 
 
 // ------------------- M1 -----------------------
 float control1;
@@ -57,6 +73,7 @@ float old_control1 = 0;
 float error1;
 float error_old1 = 0;
 float error_old_old1 = 0;
+int control1int = 0;
 
 float KP_1 = 12;
 float KI_1 = 4.5;
@@ -68,13 +85,13 @@ float old_control2 = 0;
 float error2;
 float error_old2 = 0;
 float error_old_old2 = 0; 
+int control2int = 0;
 
 float KP_2 = 30;
 float KI_2 = 9.5;
 float KD_2 = 0.01;
 
-float setpoint0 = -20;
-float setpoint1 = -30;
+
 
 const int CMD_MAX = 400;   // max command magnitude you send to Sabertooth (adjust)
 const int CMD_MIN = -250;
@@ -152,20 +169,18 @@ void setup() {
   lim1WasPressed = (digitalRead(LIM1_PIN) == LOW);
 
   // Servo 1
-  servo1.attach(9);
-  delay(1000);
-
-  servo1.write(s1pos1);
-  delay(1000);
+  //servo1.attach(9);
+  //servo1.write(s1pos1);
+  // delay(1000);
 
   // Servo 2
-  servo2.attach(8);
-  delay(1000);
-  servo2.write(60);
-  delay(2000);
-  servo2.write(75);
-  delay(2000);
-  servo2.write(60);
+  // servo2.attach(8);
+  // delay(1000);
+  // servo2.write(60);
+  // delay(2000);
+  // servo2.write(75);
+  // delay(2000);
+  // servo2.write(60);
 }
 
 void loop() {
@@ -180,6 +195,42 @@ void loop() {
         firstPID = false;
       }
 
+      if (homing){
+        // Rutina de limit switches
+        bool lim0Pressed = (digitalRead(LIM0_PIN) == LOW);
+        bool lim1Pressed = (digitalRead(LIM1_PIN) == LOW);
+        lim0WasPressed = lim0Pressed;
+        lim1WasPressed = lim1Pressed;
+        // Serial.print("lim0Pressed: ");
+        // Serial.print(lim0WasPressed);
+        // Serial.print(",  ");
+        // Serial.print("lim1Pressed: ");
+        // Serial.print(lim1WasPressed);
+        // Serial.println(",  ");
+
+        if (lim0WasPressed == 0 && homing_m1){
+          // Movemos motor 1 para arriba suave
+          control1int = homing_m1_speed;
+        }
+        else{
+          // M1 llego a su cero absoluto.
+          control1int = 0;
+          homing_m1 = false;
+        }
+        
+        if (lim1WasPressed == 0 && homing_m2){
+          // Movemos motor 1 para arriba suave
+          control2int = homing_m2_speed;
+        }
+        else{
+          // M1 llego a su cero absoluto.
+          control2int = 0;
+          homing_m2 = false;
+        }
+
+
+      }
+
       newtime = micros();
 
       // Check limit switches
@@ -192,8 +243,6 @@ void loop() {
         encoder0Pos = 0;
         interrupts();
         oldposition0 = 0;
-        // integ0 = 0.0;        // reset integrator to avoid jump
-        // prevErr0 = 0.0;
         Serial.println("LIM0 pressed");
       }
 
@@ -203,8 +252,6 @@ void loop() {
         encoder1Pos = 0;
         interrupts();
         oldposition1 = 0;
-        // error2 = 0.0;        // reset integrator to avoid jump
-        // error_old2 = 0.0;
         Serial.println("LIM1 pressed");
       }
 
@@ -230,49 +277,64 @@ void loop() {
       degM0 = revM0 * 360;  // Grados a los que está eslabon 0
       degM1 = revM1 * 360;  // Grados a los que está eslabon 1
 
-      // --- Motor 0 PID ---
-      error1 = setpoint0 - degM0;
-      control1 = old_control1 + (KP_1 + dt * KI_1 + KD_1 / dt) * error1 + (-KP_1 - (2 * KD_1) / dt) * error_old1 + (KD_1 / dt) * error_old_old1;
-      control1 = clip(control1, CMD_MIN, CMD_MAX); // Clipping
-      int control1int = int(control1);
+      // PID Control
+      if (PID_control){
+        // --- Motor 0 PID ---
+        error1 = setpoint0 - degM0;
+        if (fabs(error1) < pos_tol){  // deadband
+          error1 = 0.0;
+        }
 
-      // --- Motor 1 PID (same pattern) ---
-      error2 = setpoint1 - degM1;
-      control2 = old_control2 + (KP_2 + dt * KI_2 + KD_2 / dt) * error2 + (-KP_2 - (2 * KD_2) / dt) * error_old2 + (KD_2 / dt) * error_old_old2;
-      control2 = clip(control2, CMD_MIN, CMD_MAX);
-      int control2int = int(control2);
+        control1 = old_control1 + (KP_1 + dt * KI_1 + KD_1 / dt) * error1 + (-KP_1 - (2 * KD_1) / dt) * error_old1 + (KD_1 / dt) * error_old_old1;
+        control1 = clip(control1, CMD_MIN, CMD_MAX); // Clipping
+        control1int = int(control1);
 
-      // Mandar mensajes a sabertooth
+        // --- Motor 1 PID (same pattern) ---
+        error2 = setpoint1 - degM1;
+        if (fabs(error2) < pos_tol){  // deadband
+          error2 = 0.0;
+        }
 
+        control2 = old_control2 + (KP_2 + dt * KI_2 + KD_2 / dt) * error2 + (-KP_2 - (2 * KD_2) / dt) * error_old2 + (KD_2 / dt) * error_old_old2;
+        control2 = clip(control2, CMD_MIN, CMD_MAX);
+        control2int = int(control2);
 
+        // Motor command a sabertooth.
+        String cmd1 = "M1:" + String(control1int);
+        String cmd2 = "M2:" + String(control2int);
+        Serial1.println(cmd2);
+        Serial1.println(cmd1);
 
-      // Actualización variables para siguiente ciclo
-      error_old_old1 = error_old1;
-      error_old1 = error1;
-      old_control1 = control1;
-      error_old_old2 = error_old2;
-      error_old2 = error2;
-      old_control2 = control2;
-
-      // Reportar datos
-      Serial.print("pos 1: ");
-      Serial.print(degM0);
-      Serial.print(",  ");
-      Serial.print("pos 2: ");
-      Serial.print(degM1);
-      Serial.print(",  ");
-      Serial.print("output 1: ");
-      Serial.print(control1int);
-      Serial.print(",  ");
-      Serial.print("output 2: ");
-      Serial.print(control2int);
-      Serial.println(",  ");
+        // Actualización variables para siguiente ciclo
+        error_old_old1 = error_old1;
+        error_old1 = error1;
+        old_control1 = control1;
+        error_old_old2 = error_old2;
+        error_old2 = error2;
+        old_control2 = control2;
+      }
 
       String cmd1 = "M1:" + String(control1int);
       String cmd2 = "M2:" + String(control2int);
-
       Serial1.println(cmd2);
       Serial1.println(cmd1);
+
+      if (print_control){
+        // Reportar datos
+        Serial.print("pos 1: ");
+        Serial.print(degM0);
+        Serial.print(",  ");
+        Serial.print("pos 2: ");
+        Serial.print(degM1);
+        Serial.print(",  ");
+        Serial.print("output 1: ");
+        Serial.print(control1int);
+        Serial.print(",  ");
+        Serial.print("output 2: ");
+        Serial.print(control2int);
+        Serial.println(",  ");
+      }
+
 
       // Servo 1
       if (s1pos1 > s1pos1limit) {
