@@ -52,8 +52,8 @@ float degM1 = 0;
 bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = false;
 bool print_control = true; // imprimir señales en terminal
-float setpoint0 = -30;     // eslabon 1
-float setpoint1 = 30;  // eslabon 2
+float setpoint0 = -15;     // eslabon 1
+float setpoint1 = 15;  // eslabon 2
 
 // homing
 bool homing_m1 = true;  // No modificar
@@ -233,30 +233,6 @@ void loop() {
 
       newtime = micros();
 
-      // Check limit switches
-      bool lim0Pressed = (digitalRead(LIM0_PIN) == LOW);
-      bool lim1Pressed = (digitalRead(LIM1_PIN) == LOW);
-
-      if (lim0Pressed && !lim0WasPressed) {
-        // reset encoder0 safely
-        noInterrupts();
-        encoder0Pos = 0;
-        interrupts();
-        oldposition0 = 0;
-        Serial.println("LIM0 pressed");
-      }
-
-      if (lim1Pressed && !lim1WasPressed) {
-        // reset encoder1 safely
-        noInterrupts();
-        encoder1Pos = 0;
-        interrupts();
-        oldposition1 = 0;
-        Serial.println("LIM1 pressed");
-      }
-
-      lim0WasPressed = lim0Pressed;
-      lim1WasPressed = lim1Pressed;
 
       // Actualizando Informacion de los encoders
       noInterrupts();
