@@ -83,6 +83,7 @@ env/
 ENV/
 venv.bak/
 env.bak/
+myenv/
 
 # VS Code & JetBrains IDEs
 .vscode/
