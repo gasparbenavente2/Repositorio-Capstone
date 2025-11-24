@@ -1,3 +1,11 @@
+dt = 1 / 1 # Vel loop principal
+
+
+# Comunicacion seriañ
+port = "COM3"
+baud_rate = 115200
+
+
 # Cinematica
 
 # angulos homing: angulos absolutos a los que queda el brazo al hacer homing

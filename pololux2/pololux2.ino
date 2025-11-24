@@ -49,11 +49,11 @@ float degM0 = 0;
 float degM1 = 0;
 
 // Control macro
-bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
-float PID_control = false;
+bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
+float PID_control = true;
 bool print_control = true; // imprimir señales en terminal
-float setpoint0 = -15;     // eslabon 1
-float setpoint1 = 15;  // eslabon 2
+float setpoint0 = 0;     // eslabon 1
+float setpoint1 = 0;  // eslabon 2
 
 // homing
 bool homing_m1 = true;  // No modificar
@@ -93,7 +93,7 @@ float KD_2 = 0.01;
 
 
 
-const int CMD_MAX = 400;   // max command magnitude you send to Sabertooth (adjust)
+const int CMD_MAX = 500;   // max command magnitude you send to Sabertooth (adjust)
 const int CMD_MIN = -250;
 
 const float sampleTime_s = 0.010f; // sample time in seconds (match your loop; 10 ms = 0.01)
@@ -158,7 +158,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(encoder1PinB), doEncoder1B, CHANGE);  // encoder 1 PIN B
 
   // Configurar Serial port
-  Serial.begin(38400);                   // Inicializar el puerto serial (Monitor Serial)
+  Serial.begin(115200);                   // Inicializar el puerto serial (Monitor Serial)
   Serial.println("start");
   Serial1.begin(9600);                  // Comunicacion serial sabertooth
 
@@ -183,7 +183,41 @@ void setup() {
   // servo2.write(60);
 }
 
+char msgEnd = ';';
+bool reading = false;
+String instruccion;
+bool newMsg = false;
+
+String readBuff() {
+  String buffArray;
+  //int i = 0;
+
+  while (Serial.available() > 0) { //Entro a este while mientras exista algo en el puerto serial
+    char buff = Serial.read(); //Leo el byte entrante
+    if (buff == msgEnd) {
+      newMsg = true;
+      reading = false;
+      break; //Si el byte entrante coincide con mi delimitador, me salgo del while
+    } else {
+      buffArray += buff; //Si no, agrego el byte a mi string para construir el mensaje
+      reading = true;
+    }
+    // delay(6.7);
+  }
+
+  return buffArray;  //Retorno el mensaje
+}
+
+
 void loop() {
+  if (Serial.available()){
+    instruccion = readBuff();
+    if (newMsg){
+      Serial.print("Instruccion: ");
+      Serial.println(instruccion);
+    }
+  }
+
   if ((micros() - time_ant) >= Period)
     {
       if (firstPID) {
