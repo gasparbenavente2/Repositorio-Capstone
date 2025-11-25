@@ -1,3 +1,5 @@
+import numpy as np
+
 dt = 1 / 1 # Vel loop principal
 
 
@@ -14,5 +16,5 @@ l_p_2 = 0.1 # MEDIR
 
 
 # angulos homing: angulos absolutos a los que queda el brazo al hacer homing
-homing_angle_1 = 80.03  # desde horizontal hacia arriba
-homing_angle_2 = 64.95  # desde eslabon 1 a eslabon 2   
+homing_angle_1 = np.deg2rad(80.03)  # desde horizontal hacia arriba
+homing_angle_2 = np.deg2rad(64.95)  # desde eslabon 1 a eslabon 2   

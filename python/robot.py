@@ -10,9 +10,11 @@ class Robot:
         self.l_p_1 = p.l_p_1
         self.l_p_2 = p.l_p_2    # VER calculos_imagenes/cinematica.JPG para mas info
 
-        self.q = np.array([[0], [0]])  # theta_1, theta_2, theta_3 ver imagen
+        self.q = np.array([[p.homing_angle_1], [p.homing_angle_2 - np.pi], [np.pi/2]])  # theta_1, theta_2, theta_3 ver imagen
         self.pos_e_brazo = np.array([[0], [0]]) # Posicion absoluta extremo brazo
         self.pos_e_pistola = np.array([[0], [0]])   # Posicion absoluta extremo pistola
+
+        self.update_pos()
 
     
     def forward_kinematics(self, q:np.array):
@@ -66,7 +68,7 @@ class Robot:
         iter_lim = 10000
         precision = 1e-6
         # qk = np.array([[np.arctan2(p_target[1][0], p_target[0][0])], [-1]])   # q0. Punto de partida del algoritmo
-        qk = self.q
+        qk = self.q[:2]
         k = 0   # num of iterations
         stop_flag = False
 
@@ -158,6 +160,11 @@ class Robot:
                 pygame.draw.circle(screen, (0, 200, 0), p1_pt, 6)  # joint1
                 pygame.draw.circle(screen, (0, 0, 200), p2_pt, 6)  # end effector
 
+                # draw vertical line 0.5 meters from the origin from height 0 to 1
+                line_start = to_screen(0.5, 0.1)
+                line_end = to_screen(0.5, 0.4)
+                pygame.draw.line(screen, (128, 128, 128), line_start, line_end, 2)
+
                 pygame.display.flip()
                 clock.tick(fps)
         finally:
@@ -166,9 +173,10 @@ class Robot:
 
 if __name__ == "__main__":
     robot = Robot()
-    q_test = robot.inverse_kinematics(np.array([[0.4],[0.4]]))
+    # q_test = robot.inverse_kinematics(np.array([[0.5],[0.1]]))
+    # q_test = robot.inverse_kinematics(np.array([[0.5],[0.4]]))
 
 
     # q_test = np.array([[np.pi / 4], [-np.pi / 2]])
-    print(robot.forward_kinematics(q_test))
-    robot.draw(q_test)
+    #print(robot.forward_kinematics(q_test))
+    robot.draw(robot.q)
