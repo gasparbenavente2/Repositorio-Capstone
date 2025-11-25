@@ -104,6 +104,15 @@ class Robot:
                 qk = np.copy(qknew)
             pass
 
+    def correccion_theta2(self, q2_desired: float) -> float:
+        """Este medoto recibe el angulo real al que debería ir el brazo
+        y retorna el angulo que se debería comandar al encoder dada la flección (best fit line)"""
+        # theta_real = a * theta_encoder + b
+        # theta_enc_cmd = (theta_deseado - b) / a
+
+        a, b = p.lup_a, p.lup_b
+
+        return round((q2_desired - b) / a, 2)
 
     def draw(self, q:np.array):
         # initialize pygame and create window (uses params if available)
@@ -179,4 +188,6 @@ if __name__ == "__main__":
 
     # q_test = np.array([[np.pi / 4], [-np.pi / 2]])
     #print(robot.forward_kinematics(q_test))
-    robot.draw(robot.q)
+    # robot.draw(robot.q)
+    print(np.rad2deg(p.homing_angle_2) + 40)
+    print(robot.correccion_theta2(np.rad2deg(p.homing_angle_2) + 40))

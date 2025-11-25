@@ -23,7 +23,7 @@ if __name__ == "__main__":
         current_time = time.time()
         if current_time >= old_time + p.dt:
             old_time = time.time()
-            msg = "AGOTO 00.00 00.00 00.00;"
+            msg = "AGOTO 000.00 000.00 000.00;"
             msg = msg.encode("utf-8")
             ser.write(msg)
             # print(f"Enviado: {msg}")
