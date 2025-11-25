@@ -50,7 +50,7 @@ float degM1 = 0;
 
 // Control macro
 bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
-float PID_control = true;
+float PID_control = !homing;
 bool print_control = true; // imprimir señales en terminal
 float setpoint0 = 0;     // eslabon 1
 float setpoint1 = 0;  // eslabon 2
