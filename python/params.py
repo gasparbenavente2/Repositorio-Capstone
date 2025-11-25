@@ -7,6 +7,11 @@ baud_rate = 115200
 
 
 # Cinematica
+l1 = 0.4   # MEDIR
+l2 = 0.3    # MEDIR
+l_p_1 = 0.1 # MEDIR
+l_p_2 = 0.1 # MEDIR
+
 
 # angulos homing: angulos absolutos a los que queda el brazo al hacer homing
 homing_angle_1 = 80.03  # desde horizontal hacia arriba
