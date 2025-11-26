@@ -49,7 +49,7 @@ float degM0 = 0;
 float degM1 = 0;
 
 // Control macro
-bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
+bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = !homing;
 bool print_control = true; // imprimir señales en terminal
 float setpoint0 = -20;     // eslabon 1
@@ -176,7 +176,7 @@ void setup() {
   // Servo 1
   servo1.attach(9);
   servo1.write(s1pos1);
-  // delay(1000);
+  delay(1000);
 
   // Servo 2
   // servo2.attach(8);
@@ -207,7 +207,7 @@ String readBuff() {
       buffArray += buff; //Si no, agrego el byte a mi string para construir el mensaje
       reading = true;
     }
-    // delay(6.7);
+    delay(6.7);
   }
 
   return buffArray;  //Retorno el mensaje
@@ -217,9 +217,30 @@ String readBuff() {
 void loop() {
   if (Serial.available()){
     instruccion = readBuff();
-    if (newMsg){
-      Serial.print("Instruccion: ");
-      Serial.println(instruccion);
+    
+    if (instruccion[0] == 'A' && newMsg) {
+      String estado = instruccion.substring(1, 5);
+
+      if (estado == "GOTO"){
+        PID_control = true;
+        homing = false;
+
+        float q1 = instruccion.substring(6, 12).toFloat();
+        float q2 = instruccion.substring(13, 19).toFloat();
+        int q3 = instruccion.substring(20, 23).toInt();
+
+        Serial.print(q1);
+        Serial.print(q2);
+        Serial.println(q3);
+
+        setpoint0 = q1;
+        setpoint1 = q2;
+        servo1.write(q3);
+      }
+      else if (estado == "HOME"){
+        homing = true;
+        PID_control = false;
+      }
     }
   }
 
@@ -268,6 +289,11 @@ void loop() {
           // M1 llego a su cero absoluto.
           control2int = 0;
           homing_m2 = false;
+        }
+
+        if (!homing_m1 && !homing_m2){
+          Serial.println("AHOME");
+          homing = false;
         }
 
 

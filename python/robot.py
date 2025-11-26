@@ -19,8 +19,8 @@ class Robot:
 
         # find_target
         self.diff_list = []
-        self.min_angle = 0
-        self.max_angle = 180
+        self.min_angle = 130
+        self.max_angle = 131
 
         self.update_pos()
     
@@ -31,13 +31,13 @@ class Robot:
 
         msg = f"AGOTO {formatted_q1} {formatted_q2} {formatted_q3};"
         msg = msg.encode("utf-8")
+        print(f"Enviado: {msg}")
         self.serial.write(msg)
 
     def home(self):
         msg = "AHOME;"
         msg = msg.encode("utf-8")
         self.serial.write(msg)
-
     
     def forward_kinematics(self, q:np.array):
         """Calcula cinematica directa de extremo de brazo y retorna la pos absoluta. 

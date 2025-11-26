@@ -4,6 +4,7 @@ import time
 import params as p
 import robot
 import vision
+import pandas as pd
 
 # puerto serial
 ser = serial.Serial(
@@ -20,13 +21,15 @@ if __name__ == "__main__":
     old_time = time.time()
     while True:
         if ser.in_waiting > 0:
-            response = ser.readline().decode().strip()
+            response = ser.readline()
+            print(response)
+            response = response.decode().strip()
             print("Arduino:", response)
 
         current_time = time.time()
         if current_time >= old_time + p.dt:
             old_time = time.time()
-            # msg = "AGOTO 000.00 000.00 000.00;"
+            # msg = "AGOTO 000.00 000.00 000;"
             # msg = msg.encode("utf-8")
             # ser.write(msg)
             # print(f"Enviado: {msg}")
@@ -41,26 +44,23 @@ if __name__ == "__main__":
             #     pass
 
             if robot.estado == 'rest':
-                print('REST')
+                target_counter = robot.min_angle
                 s = input("Press s to start: ")
                 if s == 's':
                     robot.estado = 'homing'
 
             elif robot.estado == 'homing':
-                print('HOMING')
                 robot.home()
                 skip_homing = False
 
                 if response == 'AHOME' or skip_homing:
-                    robot.estado = 'find_target'
+                    robot.estado = 'aprox'
 
             elif robot.estado == 'find_target':
-                print('FIND_TARGET')
-                find_target_time = time.time()
-                for angle in range(robot.min_angle, robot.max_angle + 1):
-                    if time.time() >= find_target_time + p.dt:
-                        find_target_time = time.time()
-                        robot.goto(0, 0, angle)
+                target_counter += 1
+
+                if target_counter < robot.max_angle + 1:
+                    robot.goto(0, 0, target_counter)
 
                     ret, img = cap.read()
                     
@@ -69,10 +69,15 @@ if __name__ == "__main__":
                         
                         if result:
                             diff_y = result['diff_y']
-                            robot.diff_list.append([angle, diff_y])
+                            robot.diff_list.append([target_counter, diff_y])
+                else:
+                    print("Target counter: ", target_counter)
+                    df = pd.DataFrame(robot.diff_list)
+                    df.to_csv('diff_list.csv', index=False)
+                    robot.estado = 'rest'
 
             elif robot.estado == 'aprox':
-                pass
+                robot.goto(-20, 20, 100)
             elif robot.estado == 'correct':
                 pass
             elif robot.estado == 'insert':

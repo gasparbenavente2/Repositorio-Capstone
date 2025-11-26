@@ -1,10 +1,10 @@
 import numpy as np
 
-dt = 1 / 1 # Vel loop principal
+dt = 1 / 5 # Vel loop principal
 
 
 ###### Comunicacion serial ######
-port = "COM3"
+port = "/dev/tty.usbmodem11101"
 baud_rate = 115200
 
 
