@@ -1,67 +1,35 @@
-import serial
 import cv2
 import time
 import params as p
 import robot
 import vision
 
-# puerto serial
-ser = serial.Serial(
-    p.port,
-    p.baud_rate,
-    timeout=0.1)
+ser = None
 
 
 if __name__ == "__main__":
     print("Main start")
     robot = robot.Robot(ser)
+    robot.estado = 'find_target'
     cap = cv2.VideoCapture(0)
 
     old_time = time.time()
     while True:
-        if ser.in_waiting > 0:
-            response = ser.readline().decode().strip()
-            print("Arduino:", response)
-
         current_time = time.time()
         if current_time >= old_time + p.dt:
             old_time = time.time()
-            # msg = "AGOTO 000.00 000.00 000.00;"
-            # msg = msg.encode("utf-8")
-            # ser.write(msg)
-            # print(f"Enviado: {msg}")
-            # time.sleep(0.004)
-
-            # time.sleep(0.10)
-            # try:
-            #     response = ser.readline().decode('utf-8').strip()
-            #     if response:
-            #         print("Arduino:", response)
-            # except UnicodeDecodeError:
-            #     pass
-
+            
             if robot.estado == 'rest':
-                print('REST')
                 s = input("Press s to start: ")
                 if s == 's':
                     robot.estado = 'homing'
 
             elif robot.estado == 'homing':
-                print('HOMING')
-                robot.home()
-                skip_homing = False
-
-                if response == 'AHOME' or skip_homing:
+                if response == 'HOMING OK':
                     robot.estado = 'find_target'
 
             elif robot.estado == 'find_target':
-                print('FIND_TARGET')
-                find_target_time = time.time()
                 for angle in range(robot.min_angle, robot.max_angle + 1):
-                    if time.time() >= find_target_time + p.dt:
-                        find_target_time = time.time()
-                        robot.goto(0, 0, angle)
-
                     ret, img = cap.read()
                     
                     if ret:
@@ -70,6 +38,7 @@ if __name__ == "__main__":
                         if result:
                             diff_y = result['diff_y']
                             robot.diff_list.append([angle, diff_y])
+                            print(f"Angle: {angle}, Diff Y: {diff_y}")
 
             elif robot.estado == 'aprox':
                 pass
