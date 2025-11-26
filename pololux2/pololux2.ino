@@ -3,7 +3,7 @@
 // Servo 1
 Servo servo1;
 int s1pos1 = 130;               // current angle
-int s1pos1limit = 80;
+int s1pos1limit = 95;
 
 // Servo 2
 Servo servo2;
@@ -49,11 +49,11 @@ float degM0 = 0;
 float degM1 = 0;
 
 // Control macro
-bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
+bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = !homing;
 bool print_control = true; // imprimir señales en terminal
-float setpoint0 = 0;     // eslabon 1
-float setpoint1 = 0;  // eslabon 2
+float setpoint0 = -20;     // eslabon 1
+float setpoint1 = 20;  // eslabon 2
 
 // homing
 bool homing_m1 = true;  // No modificar
@@ -63,29 +63,34 @@ int homing_m2_speed = -60;
 
 
 // Variables control PID motoes
-int firstPID = true;
+int firstPID = false;
 float pos_tol = 0.1; // Valor al que se considera alcanzado el angulo
-int max_integrador = 100; 
+int max_integrador = 100; // No implementado todavia
 
 // ------------------- M1 -----------------------
-float control1;
+float control1 = 0;
 float old_control1 = 0;
-float error1;
+float error1 = 0;
 float error_old1 = 0;
 float error_old_old1 = 0;
+float degM0_old1;
+float degM0_old_old1;
 int control1int = 0;
 
 float KP_1 = 12;
-float KI_1 = 4.5;
-float KD_1 = 0.08;
+float KI_1 = 2; // 2.0
+float KD_1 = 0.35; // 0.35
+//float KD_1 = 0.00;
 
 // ------------------- M2 -----------------------
-float control2;
+float control2 = 0;
 float old_control2 = 0;
-float error2;
+float error2 = 0;
 float error_old2 = 0;
 float error_old_old2 = 0; 
 int control2int = 0;
+float degM1_old2;
+float degM1_old_old2;
 
 float KP_2 = 30;
 float KI_2 = 9.5;
@@ -169,8 +174,8 @@ void setup() {
   lim1WasPressed = (digitalRead(LIM1_PIN) == LOW);
 
   // Servo 1
-  //servo1.attach(9);
-  //servo1.write(s1pos1);
+  servo1.attach(9);
+  servo1.write(s1pos1);
   // delay(1000);
 
   // Servo 2
@@ -222,8 +227,11 @@ void loop() {
     {
       if (firstPID) {
         // inicializar errores previos para evitar derivative kick
+        error1 = setpoint0 - degM0;
         error_old1 = error1;
         error_old_old1 = error1;
+
+        error2 = setpoint1 - degM1;
         error_old2 = error2;
         error_old_old2 = error2;
         firstPID = false;
@@ -289,13 +297,18 @@ void loop() {
 
       // PID Control
       if (PID_control){
-        // --- Motor 0 PID ---
+        //// --- Motor 0 PID ---
         error1 = setpoint0 - degM0;
         if (fabs(error1) < pos_tol){  // deadband
           error1 = 0.0;
         }
+        
+        float dP_1 = KP_1 * (error1 - error_old1);
+        float dI_1 = KI_1 * dt * error1;
+        float dD_1 = -KD_1 * (degM0 - 2.0f * degM0_old1 + degM0_old_old1) / dt;
+        control1  = old_control1 + dP_1 + dI_1 + dD_1;
 
-        control1 = old_control1 + (KP_1 + dt * KI_1 + KD_1 / dt) * error1 + (-KP_1 - (2 * KD_1) / dt) * error_old1 + (KD_1 / dt) * error_old_old1;
+        // control1 = old_control1 + (KP_1 + dt * KI_1 + KD_1 / dt) * error1 + (-KP_1 - (2 * KD_1) / dt) * error_old1 + (KD_1 / dt) * error_old_old1;
         control1 = clip(control1, CMD_MIN, CMD_MAX); // Clipping
         control1int = int(control1);
 
@@ -304,16 +317,16 @@ void loop() {
         if (fabs(error2) < pos_tol){  // deadband
           error2 = 0.0;
         }
-
+        
         control2 = old_control2 + (KP_2 + dt * KI_2 + KD_2 / dt) * error2 + (-KP_2 - (2 * KD_2) / dt) * error_old2 + (KD_2 / dt) * error_old_old2;
         control2 = clip(control2, CMD_MIN, CMD_MAX);
         control2int = int(control2);
 
         // Motor command a sabertooth.
-        String cmd1 = "M1:" + String(control1int);
-        String cmd2 = "M2:" + String(control2int);
-        Serial1.println(cmd2);
-        Serial1.println(cmd1);
+        //cmd1 = "M1:" + String(control1int);
+        //cmd2 = "M2:" + String(control2int);
+
+
 
         // Actualización variables para siguiente ciclo
         error_old_old1 = error_old1;
@@ -322,13 +335,17 @@ void loop() {
         error_old_old2 = error_old2;
         error_old2 = error2;
         old_control2 = control2;
+        degM0_old_old1 = degM0_old1;
+        degM0_old1 = degM0;
+
+
       }
 
       String cmd1 = "M1:" + String(control1int);
       String cmd2 = "M2:" + String(control2int);
       Serial1.println(cmd2);
       Serial1.println(cmd1);
-
+      // Serial1.println("M1:-150");
       if (print_control){
         // Reportar datos
         Serial.print("pos 1: ");
