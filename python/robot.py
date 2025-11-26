@@ -4,7 +4,7 @@ import time
 import pygame
 
 class Robot:
-    def __init__(self):
+    def __init__(self, serial_port):
         self.l1 = p.l1
         self.l2 = p.l2
         self.l_p_1 = p.l_p_1
@@ -14,6 +14,8 @@ class Robot:
         self.pos_e_brazo = np.array([[0], [0]]) # Posicion absoluta extremo brazo
         self.pos_e_pistola = np.array([[0], [0]])   # Posicion absoluta extremo pistola
 
+        self.serial = serial_port
+        self.estado = 'rest'            # rest, homing, find_target, aprox, correct, insert, trigger, exit
         self.update_pos()
 
     
