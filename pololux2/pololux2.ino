@@ -49,11 +49,11 @@ float degM0 = 0;
 float degM1 = 0;
 
 // Control macro
-bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
+bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = !homing;
 bool print_control = true; // imprimir señales en terminal
 float setpoint0 = -20;     // eslabon 1
-float setpoint1 = 20;  // eslabon 2
+float setpoint1 = 0;  // eslabon 2
 
 // homing
 bool homing_m1 = true;  // No modificar
@@ -222,6 +222,8 @@ void loop() {
       String estado = instruccion.substring(1, 5);
 
       if (estado == "GOTO"){
+        Serial.println("GOTO");
+
         PID_control = true;
         homing = false;
 
@@ -232,7 +234,8 @@ void loop() {
         Serial.print(q1);
         Serial.print(q2);
         Serial.println(q3);
-
+        error1 = 0;
+        error2 = 0;
         setpoint0 = q1;
         setpoint1 = q2;
         servo1.write(q3);
@@ -291,7 +294,7 @@ void loop() {
           homing_m2 = false;
         }
 
-        if (!homing_m1 && !homing_m2){
+        if (!homing_m1 && !homing_m2 && homing){
           Serial.println("AHOME");
           homing = false;
         }

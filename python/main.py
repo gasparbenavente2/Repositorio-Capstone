@@ -54,6 +54,7 @@ if __name__ == "__main__":
                 skip_homing = False
 
                 if response == 'AHOME' or skip_homing:
+                    print("Response home")
                     robot.estado = 'aprox'
 
             elif robot.estado == 'find_target':
