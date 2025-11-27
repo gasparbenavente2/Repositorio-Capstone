@@ -2,8 +2,8 @@
 
 // Servo 1
 Servo servo1;
-int s1pos1 = 130;               // current angle
-int s1pos1limit = 95;
+int s1pos1 = 100;               // current angle
+int s1pos1limit = 100;
 
 // Servo 2
 Servo servo2;
@@ -47,13 +47,15 @@ float revM0 = 0;
 float revM1 = 0;
 float degM0 = 0;
 float degM1 = 0;
+float homing_theta1 = 0.0; // Angulo al que queda theta 1 despues del homing 78.8
+float homing_theta2 = 10.0; // 68.1
 
 // Control macro
 bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = !homing;
 bool print_control = true; // imprimir señales en terminal
-float setpoint0 = -20;     // eslabon 1
-float setpoint1 = 0;  // eslabon 2
+float setpoint0 =  - 0;     // eslabon 1
+float setpoint1 =  + 0;  // eslabon 2
 
 // homing
 bool homing_m1 = true;  // No modificar
@@ -175,7 +177,8 @@ void setup() {
 
   // Servo 1
   servo1.attach(9);
-  servo1.write(s1pos1);
+  servo1.write(100);
+
   delay(1000);
 
   // Servo 2
@@ -211,6 +214,17 @@ String readBuff() {
   }
 
   return buffArray;  //Retorno el mensaje
+}
+
+int s_com_para_90 = 132;
+int servo_horizon_to_command(int theta1, int theta2, int theta_horizon){
+  // Funcion recibe angulo del python: Angulo de pistola con respecto a la horizontal
+  // Y retorna el comando que se le debe mandar al servo dependiendo del estado del robot.
+  
+
+  return s_com_para_90 - theta_horizon + theta1 + theta2 - 180;
+
+
 }
 
 
@@ -249,61 +263,12 @@ void loop() {
 
   if ((micros() - time_ant) >= Period)
     {
-      if (firstPID) {
-        // inicializar errores previos para evitar derivative kick
-        error1 = setpoint0 - degM0;
-        error_old1 = error1;
-        error_old_old1 = error1;
-
-        error2 = setpoint1 - degM1;
-        error_old2 = error2;
-        error_old_old2 = error2;
-        firstPID = false;
-      }
-
-      if (homing){
-        // Rutina de limit switches
-        bool lim0Pressed = (digitalRead(LIM0_PIN) == LOW);
-        bool lim1Pressed = (digitalRead(LIM1_PIN) == LOW);
-        lim0WasPressed = lim0Pressed;
-        lim1WasPressed = lim1Pressed;
-        // Serial.print("lim0Pressed: ");
-        // Serial.print(lim0WasPressed);
-        // Serial.print(",  ");
-        // Serial.print("lim1Pressed: ");
-        // Serial.print(lim1WasPressed);
-        // Serial.println(",  ");
-
-        if (lim0WasPressed == 0 && homing_m1){
-          // Movemos motor 1 para arriba suave
-          control1int = homing_m1_speed;
-        }
-        else{
-          // M1 llego a su cero absoluto.
-          control1int = 0;
-          homing_m1 = false;
-        }
-        
-        if (lim1WasPressed == 0 && homing_m2){
-          // Movemos motor 1 para arriba suave
-          control2int = homing_m2_speed;
-        }
-        else{
-          // M1 llego a su cero absoluto.
-          control2int = 0;
-          homing_m2 = false;
-        }
-
-        if (!homing_m1 && !homing_m2 && homing){
-          Serial.println("AHOME");
-          homing = false;
-        }
-
-
-      }
+      bool lim0Pressed = (digitalRead(LIM0_PIN) == LOW);
+      bool lim1Pressed = (digitalRead(LIM1_PIN) == LOW);
+      bool lim0WasPressed = lim0Pressed;
+      bool lim1WasPressed = lim1Pressed;
 
       newtime = micros();
-
 
       // Actualizando Informacion de los encoders
       noInterrupts();
@@ -323,11 +288,68 @@ void loop() {
       revM1 = float(newposition1) / float(divM1);
       degM0 = revM0 * 360;  // Grados a los que está eslabon 0
       degM1 = revM1 * 360;  // Grados a los que está eslabon 1
+      degM0 = degM0 + homing_theta1;
+      degM1 = degM1 + homing_theta2;
+
+
+      if (firstPID) {
+        // inicializar errores previos para evitar derivative kick
+        error1 = setpoint0 - degM0;
+        error_old1 = error1;
+        error_old_old1 = error1;
+        degM0_old1 = degM0;
+        degM0_old_old1 = degM0;
+
+        error2 = setpoint1 - degM1;
+        error_old2 = error2;
+        error_old_old2 = error2;
+        firstPID = false;
+      }
+
+      
+
+      if (homing){
+
+        if (lim0WasPressed == 0 && homing_m1){
+          // Movemos motor 1 para arriba suave
+          control1int = homing_m1_speed;
+        }
+        else{
+          // M1 llego a su cero absoluto.
+          control1int = 0;
+          // degM0 = homing_theta1;
+          // degM0_old1 = degM0;
+          // degM0_old_old1 = degM0;
+          homing_m1 = false;
+        }
+        
+        if (lim1WasPressed == 0 && homing_m2){
+          // Movemos motor 1 para arriba suave
+          control2int = homing_m2_speed;
+        }
+        else{
+          // M1 llego a su cero absoluto.
+          control2int = 0;
+          degM1 = homing_theta2;
+          homing_m2 = false;
+        }
+
+        if (!homing_m1 && !homing_m2 && homing){
+          Serial.println("AHOME");
+          homing = false;
+        }
+
+
+      }
+
+      
 
       // PID Control
       if (PID_control){
         //// --- Motor 0 PID ---
+        
         error1 = setpoint0 - degM0;
+        Serial.print(error1);
         if (fabs(error1) < pos_tol){  // deadband
           error1 = 0.0;
         }
@@ -340,6 +362,7 @@ void loop() {
         // control1 = old_control1 + (KP_1 + dt * KI_1 + KD_1 / dt) * error1 + (-KP_1 - (2 * KD_1) / dt) * error_old1 + (KD_1 / dt) * error_old_old1;
         control1 = clip(control1, CMD_MIN, CMD_MAX); // Clipping
         control1int = int(control1);
+        Serial.print(control1int);
 
         // --- Motor 1 PID (same pattern) ---
         error2 = setpoint1 - degM1;
@@ -370,6 +393,15 @@ void loop() {
 
       }
 
+      // Si se apretan lim switch frenar robot
+
+      //if (lim0WasPressed || lim1WasPressed){
+      //  control1int = 0;
+      //  control2int = 0;
+      //}
+      
+      s1pos1 = servo_horizon_to_command(78, 68, -30);
+      // servo1.write(s1pos1);
       String cmd1 = "M1:" + String(control1int);
       String cmd2 = "M2:" + String(control2int);
       Serial1.println(cmd2);
@@ -388,15 +420,18 @@ void loop() {
         Serial.print(",  ");
         Serial.print("output 2: ");
         Serial.print(control2int);
+        Serial.print(",  ");
+        Serial.print("command servo: ");
+        Serial.print(s1pos1);
         Serial.println(",  ");
       }
 
 
       // Servo 1
-      if (s1pos1 > s1pos1limit) {
-        s1pos1--;
-        servo1.write(s1pos1);
-      }
+      // if (s1pos1 > s1pos1limit) {
+      //  s1pos1--;
+      //   servo1.write(s1pos1);
+      // }
 
       time_ant = newtime;
     }
