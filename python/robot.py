@@ -79,23 +79,27 @@ class Robot:
         return [p1_f0, p2_f0]
     
     def forward_kinematics_pistola(self, q:np.array):
-        """ toma en cuenta pistola"""
-        posx, posy = self.forward_kinematics(np.array([q[0], q[1] - np.pi]))[1]
+        """ toma en cuenta pistola ANGULOS EN RADIANES"""
+        posx, posy = self.forward_kinematics(np.array([q[0], q[1]]))[1]
+        posx = posx[0]
+        posy = posy[0] 
+        print(posx)
+        print(posy)
+        theta1 = q[0][0]
+        theta2 = q[1][0]
+        theta3 = q[2][0]
 
-        theta = q[0] + (q[1] - np.pi)
-        perp = np.array([[-np.sin(theta)], [np.cos(theta)]])
-        offset_dist = 0.03
-        axis_offset = offset_dist * perp 
+        h_desfase_x = 0.03 * (np.sin(theta1 + theta2 - np.pi))
+        h_desfase_y = 0.03 * (np.cos(theta1 + theta2 - np.pi))
 
-        theta4 = np.deg2rad(23) + self.q[2][0]
-        unit_theta4 = np.array([[np.cos(theta4)], [np.sin(theta4)]])
-        offset_dist = 0.2061
-        pistola_offset = offset_dist * unit_theta4
+        pistol_x = 0.206 * np.cos(theta3 + np.deg2rad(23))
+        pistol_y = 0.206 * np.sin(theta3 + np.deg2rad(23))
+        print(f"fierrox: {posx}")
+        print(f"fierroy: {posy}")
+        print(f"pistola_x: {posx + h_desfase_x + pistol_x} ")
+        print(f"pistol_y: {posy + h_desfase_y + pistol_y}")
 
-        posx, posy = posx + axis_offset[0][0] + pistola_offset[0][0], posy + axis_offset[1][0] + pistola_offset[1][0]
-        posx, posy = np.round(posx[0], 2), np.round(posy[0], 2)
-
-        return np.array([[posx], [posy]])
+        return np.array([[posx + h_desfase_x + pistol_x], [posy + h_desfase_y + pistol_y]])
     
     def update_pos(self):
         self.p1 = self.forward_kinematics(self.q)[0]
@@ -215,11 +219,13 @@ class Robot:
                 # forward kinematics
                 p1 = self.forward_kinematics(q)[0]
                 p2 = self.forward_kinematics(q)[1]
+                p_pistol = self.forward_kinematics_pistola(q)
 
                 # extract coordinates (handles column vectors)
                 x0, y0 = 0.0, 0.0
                 x1, y1 = float(p1[0][0]), float(p1[1][0])
                 x2, y2 = float(p2[0][0]), float(p2[1][0])
+                xp, yp = float(p_pistol[0][0]), float(p_pistol[1][0])
 
                 # scale (pixels per meter) — allow override in params
                 scale = getattr(p, "SCALE", getattr(p, "pixels_per_meter", 300))
@@ -233,6 +239,7 @@ class Robot:
                 o_pt = to_screen(x0, y0)
                 p1_pt = to_screen(x1, y1)
                 p2_pt = to_screen(x2, y2)
+                pistol_pt = to_screen(xp, yp)
 
                 # clear
                 screen.fill(bg)
@@ -240,11 +247,13 @@ class Robot:
                 # draw links
                 pygame.draw.line(screen, (0, 0, 0), o_pt, p1_pt, 4)    # base -> joint1
                 pygame.draw.line(screen, (0, 0, 255), p1_pt, p2_pt, 4) # joint1 -> end effector
+                pygame.draw.line(screen, (255, 0, 255), p2_pt, pistol_pt, 2) # end effector -> pistol tip
 
                 # draw joints/endpoint
                 pygame.draw.circle(screen, (200, 0, 0), o_pt, 6)   # base
                 pygame.draw.circle(screen, (0, 200, 0), p1_pt, 6)  # joint1
                 pygame.draw.circle(screen, (0, 0, 200), p2_pt, 6)  # end effector
+                pygame.draw.circle(screen, (255, 0, 0), pistol_pt, 4) # pistol tip
 
                 # draw vertical line 0.5 meters from the origin from height 0 to 1
                 line_start = to_screen(0.5, 0.1)
@@ -263,7 +272,7 @@ class Robot:
         
 
 if __name__ == "__main__":
-    robot = Robot(None)
+    robot = Robot(None, None)
     # q_test = robot.inverse_kinematics(np.array([[0.5],[0.1]]))
     # q_test = robot.inverse_kinematics(np.array([[0.5],[0.4]]))
 
@@ -273,4 +282,9 @@ if __name__ == "__main__":
     # robot.draw(robot.q)
     # print(np.rad2deg(p.homing_angle_2) + 40)
     # print(robot.correccion_theta2(np.rad2deg(p.homing_angle_2) + 40))
-    robot.infer_height_hoyo(0)
+    q = np.array([[np.deg2rad(p.homing_angle_1)], [np.deg2rad(p.homing_angle_2) - np.pi], [np.deg2rad(-29)]])
+    fwd_pistola = robot.forward_kinematics_pistola(q)
+    robot.draw(q)
+    print(fwd_pistola)
+    
+    # robot.infer_height_hoyo(0)A
