@@ -18,13 +18,14 @@ def get_diff_y(img):
     centerM = int(M/2)-90
     gunN, gunM = int(N*0.22), int(M*0.15)
     gray[-gunN:, :] = 255
-    gray[:gunN, :] = 255
     
     # Thresholding (as per notebook logic: binary = (gray < 50))
-    binary = (gray < 50).astype(np.uint8)
+    binary_circle = (gray < 50).astype(np.uint8)
+
+    binary_full = (gray > 100).astype(np.uint8)
 
     # Find contours
-    contours, _ = cv2.findContours(binary.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(binary_circle.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     detected = False
     center = None
@@ -39,7 +40,7 @@ def get_diff_y(img):
         detected = True
     else:
         # Fallback: HoughCircles
-        blur = cv2.GaussianBlur(binary, (9, 9), 2)
+        blur = cv2.GaussianBlur(binary_circle, (9, 9), 2)
         circles = cv2.HoughCircles(blur, cv2.HOUGH_GRADIENT, dp=1.2, minDist=20,
                                    param1=50, param2=30, minRadius=0, maxRadius=0)
         if circles is not None:
@@ -58,13 +59,17 @@ def get_diff_y(img):
     h, w = img.shape[:2]
     img_center = (w // 2, h // 2)
     
-    diff_y = img_center[1] - center[1]
+    if np.sum(binary_full)/(N*M) < 0.9:
+        diff_y = 1e6
+    else:
+        diff_y = img_center[1] - center[1]
     
     return {
         'diff_y': diff_y,
         'circle_center': center,
         'img_center': img_center,
-        'radius': radius
+        'radius': radius,
+        'ratio': np.sum(binary_full)/(N*M)
     }
 
 def process_image(image_path):

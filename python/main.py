@@ -5,6 +5,7 @@ import params as p
 import robot
 import vision
 import pandas as pd
+import numpy as np
 
 # puerto serial
 ser = serial.Serial(
@@ -47,13 +48,15 @@ if __name__ == "__main__":
 
             if robot.estado == 'rest':
                 target_angle = robot.min_angle
-                s = input("Press s to start, g for goto, h for home: ")
+                s = input("Press s to start, g for goto, h for home, f for find target: ")
                 if s == 's':
                     robot.estado = 'homing'
                 elif s == "g":
                     robot.estado = 'goto'
                 elif s == "h":
                     robot.estado = 'homing'
+                elif s == 'f':
+                    robot.estado = 'find_target'
 
             elif robot.estado == 'homing':
                 robot.home()
@@ -65,7 +68,7 @@ if __name__ == "__main__":
 
             elif robot.estado == 'find_target':
                 if target_angle < robot.max_angle + 1:
-                    robot.goto(p.homing_angle_1 - 10, p.homing_angle_2 + 10, target_angle)
+                    robot.goto(p.homing_angle_1, p.homing_angle_2, target_angle)
 
                     ret, img = cap.read()
                     
@@ -74,19 +77,21 @@ if __name__ == "__main__":
                         
                         if result:
                             diff_y = result['diff_y']
-                            robot.diff_list.append([target_angle, diff_y])
+                            robot.diff_list.append([target_angle, np.abs(diff_y)])
                     target_angle += 1
                 else:
                     df = pd.DataFrame(robot.diff_list, columns=['angle', 'diff_y'])
+                    df = df.sort_values(by='diff_y', ascending=True)
                     df.to_csv('diff_list.csv', index=False)
 
-                    df = df.sort_values(by='diff_y', ascending=True)
-                    robot.best_angle = df.iloc[0]['angle']
+                    robot.best_angle = int(df.iloc[0]['angle']) - 1
                     robot.pos_target = robot.target_geometry()
                     robot.pos_aprox = robot.aprox_geometry()
 
+                    robot.goto(p.homing_angle_1, p.homing_angle_2, robot.best_angle)
+
                     print('Listo con target')
-                    robot.estado = 'aprox'
+                    robot.estado = 'rest'
             
             elif robot.estado == 'goto':
                 robot.goto(p.homing_angle_1 -15, p.homing_angle_2 + 15, 0)

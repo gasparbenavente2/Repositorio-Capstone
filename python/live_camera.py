@@ -27,6 +27,7 @@ while True:
         circle_center = result['circle_center']
         img_center = result['img_center']
         radius = result['radius']
+        ratio = result['ratio']
 
         # Dibujar círculo detectado (Verde)
         cv2.circle(frame, circle_center, radius, (0, 255, 0), 2)
@@ -40,7 +41,7 @@ while True:
         # Dibujar línea entre centros (Amarillo)
         cv2.line(frame, img_center, circle_center, (0, 255, 255), 2)
 
-        text = f"Diff Y: {diff_y}"
+        text = f"Diff Y: {diff_y} | Ratio: {ratio*100:.2f}%"
         color = (0, 255, 0) # Verde si se detecta
     else:
         text = "Diff Y: N/A"

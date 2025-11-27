@@ -19,7 +19,7 @@ class Robot:
 
         # find_target
         self.diff_list = []
-        self.min_angle = -35
+        self.min_angle = -45
         self.max_angle = -5
         self.best_angle = None
         self.pos_target = None
