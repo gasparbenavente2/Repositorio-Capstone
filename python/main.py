@@ -44,7 +44,7 @@ if __name__ == "__main__":
             #     pass
 
             if robot.estado == 'rest':
-                target_counter = robot.min_angle
+                target_angle = robot.min_angle
                 s = input("Press s to start: ")
                 if s == 's':
                     robot.estado = 'homing'
@@ -55,13 +55,11 @@ if __name__ == "__main__":
 
                 if response == 'AHOME' or skip_homing:
                     print("Response home")
-                    robot.estado = 'aprox'
+                    robot.estado = 'test'
 
             elif robot.estado == 'find_target':
-                target_counter += 1
-
-                if target_counter < robot.max_angle + 1:
-                    robot.goto(0, 0, target_counter)
+                if target_angle < robot.max_angle + 1:
+                    robot.goto(0, 0, target_angle)
 
                     ret, img = cap.read()
                     
@@ -70,15 +68,23 @@ if __name__ == "__main__":
                         
                         if result:
                             diff_y = result['diff_y']
-                            robot.diff_list.append([target_counter, diff_y])
+                            robot.diff_list.append([target_angle, diff_y])
+                    target_angle += 1
                 else:
-                    print("Target counter: ", target_counter)
                     df = pd.DataFrame(robot.diff_list)
-                    df.to_csv('diff_list.csv', index=False)
-                    robot.estado = 'rest'
+                    df.to_csv('diff_list.csv', index=False, columns=['angle', 'diff_y'])
+
+                    df = df.sort_values(by='diff_y', ascending=True)
+                    robot.best_angle = df.iloc[0]['angle']
+                    robot.pos_target = robot.target_geometry()
+                    robot.pos_aprox = robot.aprox_geometry()
+
+                    robot.estado = 'aprox'
 
             elif robot.estado == 'aprox':
-                robot.goto(-20, 20, 100)
+                q1_aprox, q2_aprox = robot.inv_kinematics(robot.pos_aprox)
+                robot.goto(q1_aprox, q2_aprox, -30)
+
             elif robot.estado == 'correct':
                 pass
             elif robot.estado == 'insert':
@@ -87,3 +93,5 @@ if __name__ == "__main__":
                 pass
             elif robot.estado == 'exit':
                 pass
+            elif robot.estado == 'test':
+                robot.goto(-20, 20, 100)

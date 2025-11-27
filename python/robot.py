@@ -10,7 +10,7 @@ class Robot:
         self.l_p_1 = p.l_p_1
         self.l_p_2 = p.l_p_2    # VER calculos_imagenes/cinematica.JPG para mas info
 
-        self.q = np.array([[p.homing_angle_1], [p.homing_angle_2 - np.pi], [np.pi/2]])  # theta_1, theta_2, theta_3 ver imagen
+        self.q = np.array([[p.homing_angle_1], [p.homing_angle_2 - np.pi], [0]])  # theta_1, theta_2, theta_3 ver imagen
         self.pos_e_brazo = np.array([[0], [0]]) # Posicion absoluta extremo brazo
         self.pos_e_pistola = np.array([[0], [0]])   # Posicion absoluta extremo pistola
 
@@ -19,8 +19,13 @@ class Robot:
 
         # find_target
         self.diff_list = []
-        self.min_angle = 130
+        self.min_angle = 131
         self.max_angle = 131
+        self.best_angle = None
+        self.pos_target = None
+
+        # aprox
+        self.pos_aprox = None
 
         self.update_pos()
     
@@ -38,6 +43,14 @@ class Robot:
         msg = "AHOME;"
         msg = msg.encode("utf-8")
         self.serial.write(msg)
+
+    def target_geometry(self):
+        """ encuentra posicion de target """
+        return None
+
+    def aprox_geometry(self):
+        """ encuentra posicion de aproximacion segun target """
+        return None
     
     def forward_kinematics(self, q:np.array):
         """Calcula cinematica directa de extremo de brazo y retorna la pos absoluta. 
@@ -61,6 +74,25 @@ class Robot:
         p2_f0 = np.dot(R2, p2) + p1_f0
 
         return [p1_f0, p2_f0]
+    
+    def forward_kinematics_pistola(self, q:np.array):
+        """ toma en cuenta pistola"""
+        posx, posy = self.forward_kinematics(np.array([q[0], q[1] - np.pi/2]))[1]
+
+        theta = q[0] + q[1] - np.pi/2
+        perp = np.array([[-np.sin(theta)], [np.cos(theta)]])
+        offset_dist = 0.03
+        axis_offset = offset_dist * perp
+
+        theta4 = np.deg2rad(23) + self.q[2][0]
+        unit_theta4 = np.array([[np.cos(theta4)], [np.sin(theta4)]])
+        offset_dist = 0.2061
+        pistola_offset = offset_dist * unit_theta4
+
+        posx, posy = posx + axis_offset[0][0] + pistola_offset[0][0], posy + axis_offset[1][0] + pistola_offset[1][0]
+        posx, posy = np.round(posx[0], 2), np.round(posy[0], 2)
+
+        return np.array([[posx], [posy]])
     
     def update_pos(self):
         self.p1 = self.forward_kinematics(self.q)[0]
@@ -125,6 +157,26 @@ class Robot:
                 k += 1
                 qk = np.copy(qknew)
             pass
+    
+    def inverse_kinematics_pistola(self, p_target: np.array):
+        """ toma en cuenta pistola"""
+        theta4 = np.deg2rad(23) + self.q[2][0]
+        unit_theta4 = np.array([[np.cos(theta4)], [np.sin(theta4)]])
+        pistola_offset = 0.2061 * unit_theta4
+
+        q_robot = self.q[:2]
+
+        for _ in range(4):
+            theta_tip = q_robot[0][0] + q_robot[1][0]
+            perp = np.array([[-np.sin(theta_tip)], [np.cos(theta_tip)]])
+            axis_offset = 0.03 * perp
+            p_wrist = p_target - axis_offset - pistola_offset
+            q_robot = self.inverse_kinematics(p_wrist)
+
+        q_pistol = q_robot.copy()
+        q_pistol[1][0] += np.pi/2
+
+        return q_pistol
 
     def correccion_theta2(self, q2_desired: float) -> float:
         """Este medoto recibe el angulo real al que debería ir el brazo

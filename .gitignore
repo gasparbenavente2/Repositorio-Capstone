@@ -96,3 +96,6 @@ myenv/
 *.tmp
 *.swp
 *.bak
+
+python/test_robot.py
+python/vision_test.ipynb
