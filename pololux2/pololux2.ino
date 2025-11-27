@@ -47,8 +47,8 @@ float revM0 = 0;
 float revM1 = 0;
 float degM0 = 0;
 float degM1 = 0;
-float homing_theta1 = 78.8; // Angulo al que queda theta 1 despues del homing 78.8
-float homing_theta2 = 68.1; // 68.1
+float homing_theta1 = 86.36; // Angulo al que queda theta 1 despues del homing 78.8
+float homing_theta2 = 62.10; // 68.1
 
 // Control macro
 bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
