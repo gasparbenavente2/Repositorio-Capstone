@@ -47,15 +47,15 @@ float revM0 = 0;
 float revM1 = 0;
 float degM0 = 0;
 float degM1 = 0;
-float homing_theta1 = 0.0; // Angulo al que queda theta 1 despues del homing 78.8
-float homing_theta2 = 10.0; // 68.1
+float homing_theta1 = 78.8; // Angulo al que queda theta 1 despues del homing 78.8
+float homing_theta2 = 68.1; // 68.1
 
 // Control macro
 bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = !homing;
 bool print_control = true; // imprimir señales en terminal
 float setpoint0 =  - 0;     // eslabon 1
-float setpoint1 =  + 0;  // eslabon 2
+float setpoint1 =  + 10;  // eslabon 2
 
 // homing
 bool homing_m1 = true;  // No modificar
@@ -241,7 +241,7 @@ void loop() {
         PID_control = true;
         homing = false;
 
-        float q1 = instruccion.substring(6, 12).toFloat();
+        float q1 = instruccion.substring(6, 12).toFloat(); - homing_theta1;
         float q2 = instruccion.substring(13, 19).toFloat();
         int q3 = instruccion.substring(20, 23).toInt();
 
@@ -288,8 +288,8 @@ void loop() {
       revM1 = float(newposition1) / float(divM1);
       degM0 = revM0 * 360;  // Grados a los que está eslabon 0
       degM1 = revM1 * 360;  // Grados a los que está eslabon 1
-      degM0 = degM0 + homing_theta1;
-      degM1 = degM1 + homing_theta2;
+      degM0 = degM0; //+ homing_theta1;
+      degM1 = degM1; // + homing_theta2;
 
 
       if (firstPID) {
@@ -330,7 +330,7 @@ void loop() {
         else{
           // M1 llego a su cero absoluto.
           control2int = 0;
-          degM1 = homing_theta2;
+          // degM1 = homing_theta2;
           homing_m2 = false;
         }
 
