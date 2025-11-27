@@ -52,8 +52,8 @@ float homing_theta2 = 68.1; // 68.1
 
 // Control macro
 bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
-float PID_control = !homing;
-bool print_control = false; // imprimir señales en terminal
+float PID_control = false;
+bool print_control = true; // imprimir señales en terminal
 float setpoint0 =  0;     // eslabon 1
 float setpoint1 =  0;  // eslabon 2
 
@@ -66,7 +66,7 @@ int homing_m2_speed = -60;
 
 // Variables control PID motoes
 int firstPID = false;
-float pos_tol = 0.1; // Valor al que se considera alcanzado el angulo
+float pos_tol = 1.0; // Valor al que se considera alcanzado el angulo
 int max_integrador = 100; // No implementado todavia
 
 // ------------------- M1 -----------------------
@@ -78,6 +78,7 @@ float error_old_old1 = 0;
 float degM0_old1;
 float degM0_old_old1;
 int control1int = 0;
+bool m1_at_goto = false;
 
 float KP_1 = 12;
 float KI_1 = 2; // 2.0
@@ -93,6 +94,7 @@ float error_old_old2 = 0;
 int control2int = 0;
 float degM1_old2;
 float degM1_old_old2;
+bool m2_at_goto = false;
 
 float KP_2 = 30;
 float KI_2 = 9.5;
@@ -244,16 +246,18 @@ void loop() {
         float q2 = instruccion.substring(13, 19).toFloat() - homing_theta2;
         int q3 = instruccion.substring(20, 24).toInt();
 
-        Serial.print(q1);
-        Serial.print(q2);
+        //Serial.print(q1);
+        // Serial.print(q2);
 
         s1pos1 = servo_horizon_to_command(homing_theta1, homing_theta2, q3);
-        Serial.println(s1pos1);
+        // Serial.println(s1pos1);
 
         error1 = 0;
         error2 = 0;
         setpoint0 = q1;
         setpoint1 = q2;
+        m1_at_goto = false;
+        m2_at_goto = false;
       }
       else if (estado == "HOME"){
         homing = true;
@@ -350,8 +354,11 @@ void loop() {
         //// --- Motor 0 PID ---
         
         error1 = setpoint0 - degM0;
+        // Serial.println(error1);
+        // Serial.println(fabs(error1));
         if (fabs(error1) < pos_tol){  // deadband
           error1 = 0.0;
+          m1_at_goto = true;
         }
         
         float dP_1 = KP_1 * (error1 - error_old1);
@@ -367,6 +374,7 @@ void loop() {
         error2 = setpoint1 - degM1;
         if (fabs(error2) < pos_tol){  // deadband
           error2 = 0.0;
+          m2_at_goto = true;
         }
         
         control2 = old_control2 + (KP_2 + dt * KI_2 + KD_2 / dt) * error2 + (-KP_2 - (2 * KD_2) / dt) * error_old2 + (KD_2 / dt) * error_old_old2;
@@ -398,11 +406,22 @@ void loop() {
       //  control1int = 0;
       //  control2int = 0;
       //}
+      // Serial.println(m1_at_goto);
+      // Serial.println(m2_at_goto);
+      if (PID_control){
+        if (m1_at_goto && m2_at_goto){
+          
+          Serial.println("ATGOTO");
+        }
+      }
+
+
+
       servo1.write(s1pos1);
       String cmd1 = "M1:" + String(control1int);
       String cmd2 = "M2:" + String(control2int);
-      //Serial1.println(cmd2);
-      //Serial1.println(cmd1);
+      Serial1.println(cmd2);
+      Serial1.println(cmd1);
       if (print_control){
         // Reportar datos
         Serial.print("pos 1: ");
