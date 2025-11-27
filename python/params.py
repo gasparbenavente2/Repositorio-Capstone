@@ -21,5 +21,5 @@ lup_a = 0.8934 # pendiente
 lup_b = 6.2105 # intercept
 
 # angulos homing: angulos absolutos a los que queda el brazo al hacer homing
-homing_angle_1 = np.deg2rad(78.80)  # desde horizontal hacia arriba
-homing_angle_2 = np.deg2rad(68.10)  # desde eslabon 1 a eslabon 2   
+homing_angle_1 = 78.80  # desde horizontal hacia arriba
+homing_angle_2 = 68.10  # desde eslabon 1 a eslabon 2   

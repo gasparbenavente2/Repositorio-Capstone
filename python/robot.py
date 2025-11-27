@@ -4,7 +4,7 @@ import time
 import pygame
 
 class Robot:
-    def __init__(self, serial_port):
+    def __init__(self, serial_port, message_log):
         self.l1 = p.l1
         self.l2 = p.l2
         self.l_p_1 = p.l_p_1
@@ -27,6 +27,8 @@ class Robot:
         # aprox
         self.pos_aprox = None
 
+        self.message_log = message_log
+
         self.update_pos()
     
     def goto(self, q1, q2, q3):
@@ -36,7 +38,8 @@ class Robot:
 
         msg = f"AGOTO {formatted_q1} {formatted_q2} {formatted_q3};"
         msg = msg.encode("utf-8")
-        print(f"Enviado: {msg}")
+        # print(f"Enviado: {msg}")
+        self.message_log.append(f"Enviado: {msg}")
         self.serial.write(msg)
 
     def home(self):
@@ -77,12 +80,12 @@ class Robot:
     
     def forward_kinematics_pistola(self, q:np.array):
         """ toma en cuenta pistola"""
-        posx, posy = self.forward_kinematics(np.array([q[0], q[1] - np.pi/2]))[1]
+        posx, posy = self.forward_kinematics(np.array([q[0], q[1] - np.pi]))[1]
 
-        theta = q[0] + q[1] - np.pi/2
+        theta = q[0] + (q[1] - np.pi)
         perp = np.array([[-np.sin(theta)], [np.cos(theta)]])
         offset_dist = 0.03
-        axis_offset = offset_dist * perp
+        axis_offset = offset_dist * perp 
 
         theta4 = np.deg2rad(23) + self.q[2][0]
         unit_theta4 = np.array([[np.cos(theta4)], [np.sin(theta4)]])
@@ -252,10 +255,15 @@ class Robot:
                 clock.tick(fps)
         finally:
             pygame.quit()
+    
+    
+    def infer_height_hoyo(self, theta):
+        pos_pistola = self.forward_kinematics_pistola(np.array([np.deg2rad([p.homing_angle_1]), np.deg2rad([p.homing_angle_2])]))
+        print(pos_pistola)
         
 
 if __name__ == "__main__":
-    robot = Robot()
+    robot = Robot(None)
     # q_test = robot.inverse_kinematics(np.array([[0.5],[0.1]]))
     # q_test = robot.inverse_kinematics(np.array([[0.5],[0.4]]))
 
@@ -263,5 +271,6 @@ if __name__ == "__main__":
     # q_test = np.array([[np.pi / 4], [-np.pi / 2]])
     #print(robot.forward_kinematics(q_test))
     # robot.draw(robot.q)
-    print(np.rad2deg(p.homing_angle_2) + 40)
-    print(robot.correccion_theta2(np.rad2deg(p.homing_angle_2) + 40))
+    # print(np.rad2deg(p.homing_angle_2) + 40)
+    # print(robot.correccion_theta2(np.rad2deg(p.homing_angle_2) + 40))
+    robot.infer_height_hoyo(0)

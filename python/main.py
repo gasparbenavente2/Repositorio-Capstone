@@ -12,18 +12,20 @@ ser = serial.Serial(
     p.baud_rate,
     timeout=0.1)
 
+message_log = [] # Todos los strings enviados y que llegan
 
 if __name__ == "__main__":
     print("Main start")
-    robot = robot.Robot(ser)
+    robot = robot.Robot(ser, message_log)
     cap = cv2.VideoCapture(0)
 
     old_time = time.time()
     while True:
         if ser.in_waiting > 0:
             response = ser.readline()
-            print(response)
+            # print(response)
             response = response.decode().strip()
+            message_log.append(response)
             print("Arduino:", response)
 
         current_time = time.time()
@@ -45,21 +47,25 @@ if __name__ == "__main__":
 
             if robot.estado == 'rest':
                 target_angle = robot.min_angle
-                s = input("Press s to start: ")
+                s = input("Press s to start, g for goto, h for home: ")
                 if s == 's':
+                    robot.estado = 'homing'
+                elif s == "g":
+                    robot.estado = 'goto'
+                elif s == "h":
                     robot.estado = 'homing'
 
             elif robot.estado == 'homing':
                 robot.home()
-                skip_homing = True
+                skip_homing = False
 
                 if response == 'AHOME' or skip_homing:
                     print("Response home")
-                    robot.estado = 'find_target'
+                    robot.estado = 'rest'
 
             elif robot.estado == 'find_target':
                 if target_angle < robot.max_angle + 1:
-                    robot.goto(p.homing_angle_1, p.homing_angle_2, target_angle)
+                    robot.goto(p.homing_angle_1 - 10, p.homing_angle_2 + 10, target_angle)
 
                     ret, img = cap.read()
                     
@@ -81,6 +87,12 @@ if __name__ == "__main__":
 
                     print('Listo con target')
                     robot.estado = 'aprox'
+            
+            elif robot.estado == 'goto':
+                robot.goto(p.homing_angle_1 -15, p.homing_angle_2 + 15, 0)
+                if response == "ATGOTO":
+                    robot.estado = "rest"
+                
 
             elif robot.estado == 'aprox':
                 # q1_aprox, q2_aprox = robot.inv_kinematics(robot.pos_aprox)
@@ -97,3 +109,6 @@ if __name__ == "__main__":
                 pass
             elif robot.estado == 'test':
                 robot.goto(p.homing_angle_1-20, p.homing_angle_2+20, 100)
+
+            # if len(message_log) > 0: 
+            #     print(message_log[-1])
