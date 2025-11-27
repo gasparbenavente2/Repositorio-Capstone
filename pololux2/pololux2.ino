@@ -51,11 +51,11 @@ float homing_theta1 = 78.8; // Angulo al que queda theta 1 despues del homing 78
 float homing_theta2 = 68.1; // 68.1
 
 // Control macro
-bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
+bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = !homing;
-bool print_control = true; // imprimir señales en terminal
-float setpoint0 =  - 0;     // eslabon 1
-float setpoint1 =  + 10;  // eslabon 2
+bool print_control = false; // imprimir señales en terminal
+float setpoint0 =  0;     // eslabon 1
+float setpoint1 =  0;  // eslabon 2
 
 // homing
 bool homing_m1 = true;  // No modificar
@@ -236,23 +236,24 @@ void loop() {
       String estado = instruccion.substring(1, 5);
 
       if (estado == "GOTO"){
-        Serial.println("GOTO");
 
         PID_control = true;
         homing = false;
 
-        float q1 = instruccion.substring(6, 12).toFloat(); - homing_theta1;
-        float q2 = instruccion.substring(13, 19).toFloat();
-        int q3 = instruccion.substring(20, 23).toInt();
+        float q1 = instruccion.substring(6, 12).toFloat() - homing_theta1;
+        float q2 = instruccion.substring(13, 19).toFloat() - homing_theta2;
+        int q3 = instruccion.substring(20, 24).toInt();
 
         Serial.print(q1);
         Serial.print(q2);
-        Serial.println(q3);
+
+        s1pos1 = servo_horizon_to_command(homing_theta1, homing_theta2, q3);
+        Serial.println(s1pos1);
+
         error1 = 0;
         error2 = 0;
         setpoint0 = q1;
         setpoint1 = q2;
-        servo1.write(q3);
       }
       else if (estado == "HOME"){
         homing = true;
@@ -349,7 +350,6 @@ void loop() {
         //// --- Motor 0 PID ---
         
         error1 = setpoint0 - degM0;
-        Serial.print(error1);
         if (fabs(error1) < pos_tol){  // deadband
           error1 = 0.0;
         }
@@ -362,7 +362,6 @@ void loop() {
         // control1 = old_control1 + (KP_1 + dt * KI_1 + KD_1 / dt) * error1 + (-KP_1 - (2 * KD_1) / dt) * error_old1 + (KD_1 / dt) * error_old_old1;
         control1 = clip(control1, CMD_MIN, CMD_MAX); // Clipping
         control1int = int(control1);
-        Serial.print(control1int);
 
         // --- Motor 1 PID (same pattern) ---
         error2 = setpoint1 - degM1;
@@ -399,14 +398,11 @@ void loop() {
       //  control1int = 0;
       //  control2int = 0;
       //}
-      
-      s1pos1 = servo_horizon_to_command(78, 68, -30);
-      // servo1.write(s1pos1);
+      servo1.write(s1pos1);
       String cmd1 = "M1:" + String(control1int);
       String cmd2 = "M2:" + String(control2int);
-      Serial1.println(cmd2);
-      Serial1.println(cmd1);
-      // Serial1.println("M1:-150");
+      //Serial1.println(cmd2);
+      //Serial1.println(cmd1);
       if (print_control){
         // Reportar datos
         Serial.print("pos 1: ");

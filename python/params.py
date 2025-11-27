@@ -1,11 +1,12 @@
 import numpy as np
 
-dt = 1 / 5 # Vel loop principal
+dt = 1 / 2 # Vel loop principal
 
 
 ###### Comunicacion serial ######
-#port = "/dev/tty.usbmodem11101"
-port = "COM3"
+## ls /dev/tty.*
+port = "/dev/tty.usbmodem1201"
+#port = "COM3"
 baud_rate = 115200
 
 
@@ -20,5 +21,5 @@ lup_a = 0.8934 # pendiente
 lup_b = 6.2105 # intercept
 
 # angulos homing: angulos absolutos a los que queda el brazo al hacer homing
-homing_angle_1 = np.deg2rad(80.03)  # desde horizontal hacia arriba
-homing_angle_2 = np.deg2rad(64.95)  # desde eslabon 1 a eslabon 2   
+homing_angle_1 = np.deg2rad(78.80)  # desde horizontal hacia arriba
+homing_angle_2 = np.deg2rad(68.10)  # desde eslabon 1 a eslabon 2   

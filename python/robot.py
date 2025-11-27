@@ -19,8 +19,8 @@ class Robot:
 
         # find_target
         self.diff_list = []
-        self.min_angle = 131
-        self.max_angle = 131
+        self.min_angle = -35
+        self.max_angle = -5
         self.best_angle = None
         self.pos_target = None
 
@@ -32,7 +32,7 @@ class Robot:
     def goto(self, q1, q2, q3):
         formatted_q1 = f"{q1:06.2f}"  # total width 6: 3 digits + dot + 2 decimals
         formatted_q2 = f"{q2:06.2f}"
-        formatted_q3 = f"{q3:03d}"    # 3-digit integer with leading zeros
+        formatted_q3 = f"{q3:+04d}"
 
         msg = f"AGOTO {formatted_q1} {formatted_q2} {formatted_q3};"
         msg = msg.encode("utf-8")
