@@ -169,7 +169,7 @@ class Robot:
             # error = np.linalg.norm(p_target - pknew)
             #print(error)
             # print(p_target - pknew)
-            print(f"p_target: {p_target}, pknew: {pknew}, error: {error}")
+            # print(f"p_target: {p_target}, pknew: {pknew}, error: {error}")
             if error < precision:
                 stop_flag = True
                 end_time = time.time()
@@ -313,8 +313,8 @@ if __name__ == "__main__":
     fk_test = robot.forward_kinematics(np.array([[q1],[q2],[q3]]))
     print(fk_test)
 
-    x = fk_test[0][0]
-    y = fk_test[1][0]
+    x = fk_test[0][0] + 0.2
+    y = fk_test[1][0] - 0.1
     phi = np.deg2rad(-30)
 
 
