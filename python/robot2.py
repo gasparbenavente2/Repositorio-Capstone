@@ -11,7 +11,7 @@ class Robot:
         self.r2 = p.r2  # VER calculos_imagenes/cinematica.JPG para mas info
         self.r3 = p.r3
 
-        self.q = np.array([[np.deg2rad(p.homing_angle_1)], [np.deg2rad(p.homing_angle_2 - np.pi)], [-np.deg2rad(-30)]])  # theta_1, theta_2, theta_3 ver imagen
+        self.q = np.array([[np.deg2rad(p.homing_angle_1)], [np.deg2rad(p.homing_angle_2) - np.pi], [np.deg2rad(0)]])  # theta_1, theta_2, theta_3 ver imagen
         self.pos_e_brazo = np.array([[0], [0]]) # Posicion absoluta extremo brazo
         self.pos_e_pistola = np.array([[0], [0]])   # Posicion absoluta extremo pistola
 
@@ -26,7 +26,7 @@ class Robot:
         self.diff_list = []
         self.min_angle = -45
         self.max_angle = -5
-        self.best_angle = None
+        self.best_angle = None # grados respecto a horizontal
         self.pos_target = None
 
         # aprox
@@ -37,6 +37,11 @@ class Robot:
         self.update_pos()
     
     def goto(self, q1, q2, q3):
+        ''' Angulos en grados, q2 medido desde abajo. Lenguaje robot'''
+        q1 = np.clip(q1, 0, p.homing_angle_1)
+        q2 = np.clip(q2, p.homing_angle_2, 150)
+        q3 = np.clip(q3, -50, 50)
+
         formatted_q1 = f"{q1:06.2f}"  # total width 6: 3 digits + dot + 2 decimals
         formatted_q2 = f"{q2:06.2f}"
         formatted_q3 = f"{q3:+04d}"
@@ -52,13 +57,25 @@ class Robot:
         msg = msg.encode("utf-8")
         self.serial.write(msg)
 
-    def target_geometry(self):
-        """ encuentra posicion de target """
-        return None
+    def infer_target(self):
+        """ encuentra posicion de target. best angle en grados respecto horizontal """
+        q1 = np.deg2rad(p.homing_angle_1)
+        q2 = np.deg2rad(p.homing_angle_2) - np.pi
+        q3 = np.deg2rad(self.best_angle) - q1 - q2
+        p1 = self.forward_kinematics(np.array([[q1], [q2], [q3]]))
+
+        px = p1[0][0]
+        py = p1[1][0]
+
+        y = np.tan(np.deg2rad(self.best_angle)) * (p.d_tot - px)
+        height_hoyo = py + y
+        print(height_hoyo + p.height_eje1)
+
+        return np.array([[p.d_tot], [height_hoyo]])
 
     def aprox_geometry(self):
         """ encuentra posicion de aproximacion segun target """
-        return None
+        return np.array([[self.pos_target[0][0] - 0.05], [self.pos_target[1][0] + 0.05], [np.deg2rad(-30)]])
     
     def forward_kinematics_legacy(self, q:np.array):
         """Calcula cinematica directa de extremo de brazo y retorna la pos absoluta. 
@@ -146,9 +163,9 @@ class Robot:
     def inverse_kinematics(self, p_target: np.array):
         start_time = time.time()
         iter_lim = 1000
-        precision = 1e-3
+        precision = 1e-4
         # qk = self.
-        qk = np.array([[np.deg2rad(90)], [0], [0]])
+        qk = np.array([[np.deg2rad(p.homing_angle_1)], [np.deg2rad(p.homing_angle_2) - np.pi], [np.deg2rad(-30)]])
         k = 0   # num of iterations
         stop_flag = False
 
@@ -294,35 +311,35 @@ class Robot:
             pygame.quit()
     
     
-    def infer_height_hoyo(self, theta):
-        pos_pistola = self.forward_kinematics_pistola(np.array([np.deg2rad([p.homing_angle_1]), np.deg2rad([p.homing_angle_2])]))
-        print(pos_pistola)
+
         
 
 if __name__ == "__main__":
     robot = Robot(None, None)
 
-    q1 = np.deg2rad(p.homing_angle_1)
-    q2 = np.deg2rad(p.homing_angle_2) - np.pi
-    q3 = np.deg2rad(-30) - q1 - q2
+    # q1 = np.deg2rad(p.homing_angle_1)
+    # q2 = np.deg2rad(p.homing_angle_2) - np.pi
+    # q3 = np.deg2rad(-30) - q1 - q2
 
-    print(f"q1: {np.rad2deg(q1)}")
-    print(f"q2: {np.rad2deg(q2)}")
-    print(f"q3: {np.rad2deg(q3)}")
+    # print(f"q1: {np.rad2deg(q1)}")
+    # print(f"q2: {np.rad2deg(q2)}")
+    # print(f"q3: {np.rad2deg(q3)}")
 
-    fk_test = robot.forward_kinematics(np.array([[q1],[q2],[q3]]))
-    print(fk_test)
+    # fk_test = robot.forward_kinematics(np.array([[q1],[q2],[q3]]))
+    # print(fk_test)
 
-    x = fk_test[0][0] + 0.2
-    y = fk_test[1][0] - 0.1
-    phi = np.deg2rad(-30)
+    # x = fk_test[0][0] + 0
+    # y = fk_test[1][0] - 0
+    # phi = np.deg2rad(-30)
 
 
-    test_inv = robot.inverse_kinematics(np.array([[x], [y], [phi]]))
-    print(test_inv)
-    print(robot.forward_kinematics(test_inv))
+    # test_inv = robot.inverse_kinematics(np.array([[x], [y], [phi]]))
+    # print(test_inv)
+    # print(robot.forward_kinematics(test_inv))
 
-    robot.draw(test_inv)
+    # robot.draw(test_inv)
 
     # jacob = robot.jacobiano(robot.q)
     #print(jacob.shape)
+
+    robot.infer_target()

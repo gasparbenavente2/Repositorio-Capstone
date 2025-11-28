@@ -4,6 +4,7 @@
 Servo servo1;
 int s1pos1 = 100;               // current angle
 int s1pos1limit = 100;
+int s1pos1_new = s1pos1;
 
 // Servo 2
 Servo servo2;
@@ -47,8 +48,9 @@ float revM0 = 0;
 float revM1 = 0;
 float degM0 = 0;
 float degM1 = 0;
-float homing_theta1 = 86.36; // Angulo al que queda theta 1 despues del homing 78.8
-float homing_theta2 = 62.10; // 68.1
+int q3;
+float homing_theta1 = 87.0; // Angulo al que queda theta 1 despues del homing 78.8
+float homing_theta2 = 64.45; // 68.1
 
 // Control macro
 bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
@@ -61,7 +63,7 @@ float setpoint1 =  0;  // eslabon 2
 bool homing_m1 = true;  // No modificar
 bool homing_m2 = true;  // No modificar
 int homing_m1_speed = 320;
-int homing_m2_speed = -60;
+int homing_m2_speed = -80;
 
 
 // Variables control PID motoes
@@ -249,7 +251,7 @@ void loop() {
         //Serial.print(q1);
         // Serial.print(q2);
 
-        s1pos1 = servo_horizon_to_command(homing_theta1, homing_theta2, q3);
+        s1pos1_new = servo_horizon_to_command(q1 + homing_theta1, q2 + homing_theta2, q3);
         // Serial.println(s1pos1);
 
         error1 = 0;
@@ -322,6 +324,7 @@ void loop() {
         else{
           // M1 llego a su cero absoluto.
           control1int = 0;
+          encoder0Pos = 0;
           // degM0 = homing_theta1;
           // degM0_old1 = degM0;
           // degM0_old_old1 = degM0;
@@ -335,6 +338,7 @@ void loop() {
         else{
           // M1 llego a su cero absoluto.
           control2int = 0;
+          encoder1Pos = 0;
           // degM1 = homing_theta2;
           homing_m2 = false;
         }
@@ -416,8 +420,16 @@ void loop() {
       }
 
 
-
-      servo1.write(s1pos1);
+      // if (s1pos1_new - s1pos1 > 0){
+      //   s1pos1--;
+      //   servo1.write(s1pos1);
+      // }
+      // if (s1pos1_new - s1pos1 < 0){
+      //   s1pos1++;
+      //   servo1.write(s1pos1);
+      // }
+      // s1pos1_new = servo_horizon_to_command(degM0 + homing_theta1, degM1 + homing_theta2, q3);
+      servo1.write(s1pos1_new);
       String cmd1 = "M1:" + String(control1int);
       String cmd2 = "M2:" + String(control2int);
       Serial1.println(cmd2);

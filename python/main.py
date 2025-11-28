@@ -2,7 +2,7 @@ import serial
 import cv2
 import time
 import params as p
-import robot
+import robot2 as robot
 import vision
 import pandas as pd
 import numpy as np
@@ -18,9 +18,14 @@ message_log = [] # Todos los strings enviados y que llegan
 if __name__ == "__main__":
     print("Main start")
     robot = robot.Robot(ser, message_log)
+    q1 = np.deg2rad(p.homing_angle_1)
+    q2 = np.deg2rad(p.homing_angle_2) - np.pi
+    q3 = - q1 - q2
+    robot.q = np.array([[q1], [q2], [q3]])
     cap = cv2.VideoCapture(0)
 
     old_time = time.time()
+    # robot.goto(p.homing_angle_1, p.homing_angle_2, robot.min_angle)
     while True:
         if ser.in_waiting > 0:
             response = ser.readline()
@@ -28,6 +33,14 @@ if __name__ == "__main__":
             response = response.decode().strip()
             message_log.append(response)
             print("Arduino:", response)
+
+            if response == 'AHOME':
+                print("Response home")
+                robot.estado = 'rest'
+                pass
+            if response == "ATGOTO" and robot.estado in ['goto', 'aprox']:
+                # robot.estado = "rest"
+                pass
 
         current_time = time.time()
         if current_time >= old_time + p.dt:
@@ -48,7 +61,7 @@ if __name__ == "__main__":
 
             if robot.estado == 'rest':
                 target_angle = robot.min_angle
-                s = input("Press s to start, g for goto, h for home, f for find target: ")
+                s = input("Press s to start, g for goto, h for home, f for find target, a for aprox: ")
                 if s == 's':
                     robot.estado = 'homing'
                 elif s == "g":
@@ -57,52 +70,71 @@ if __name__ == "__main__":
                     robot.estado = 'homing'
                 elif s == 'f':
                     robot.estado = 'find_target'
+                elif s == 'a':
+                    robot.estado = 'aprox'
 
             elif robot.estado == 'homing':
                 robot.home()
                 skip_homing = False
 
-                if response == 'AHOME' or skip_homing:
-                    print("Response home")
-                    robot.estado = 'rest'
+                pos = robot.forward_kinematics(robot.q)
+                print(pos)
 
             elif robot.estado == 'find_target':
-                if target_angle < robot.max_angle + 1:
-                    robot.goto(p.homing_angle_1, p.homing_angle_2, target_angle)
-
-                    ret, img = cap.read()
-                    
-                    if ret:
-                        result = vision.get_diff_y(img)
-                        
-                        if result:
-                            diff_y = result['diff_y']
-                            robot.diff_list.append([target_angle, np.abs(diff_y)])
-                    target_angle += 1
-                else:
-                    df = pd.DataFrame(robot.diff_list, columns=['angle', 'diff_y'])
-                    df = df.sort_values(by='diff_y', ascending=True)
-                    df.to_csv('diff_list.csv', index=False)
-
-                    robot.best_angle = int(df.iloc[0]['angle']) - 1
-                    robot.pos_target = robot.target_geometry()
-                    robot.pos_aprox = robot.aprox_geometry()
-
-                    robot.goto(p.homing_angle_1, p.homing_angle_2, robot.best_angle)
-
+                robot.best_angle = None
+                if robot.best_angle:
                     print('Listo con target')
                     robot.estado = 'rest'
+                    robot.pos_target = robot.infer_target()
+                    robot.pos_aprox = robot.aprox_geometry()
+                else:
+
+                    if target_angle < robot.max_angle + 1:
+                        robot.goto(p.homing_angle_1, p.homing_angle_2, target_angle)
+
+                        ret, img = cap.read()
+                        
+                        if ret:
+                            result = vision.get_diff_y(img)
+                            
+                            if result:
+                                diff_y = result['diff_y']
+                                robot.diff_list.append([target_angle, np.abs(diff_y)])
+                        target_angle += 1
+                    else:
+                        df = pd.DataFrame(robot.diff_list, columns=['angle', 'diff_y'])
+                        df = df.sort_values(by='diff_y', ascending=True)
+                        df.to_csv('diff_list.csv', index=False)
+
+                        robot.best_angle = int(df.iloc[0]['angle']) - 1
+                        robot.pos_target = robot.infer_target()
+                        robot.pos_aprox = robot.aprox_geometry()
+
+                        robot.goto(p.homing_angle_1, p.homing_angle_2, robot.best_angle)
+
+                        print('Listo con target')
+                        robot.estado = 'rest'
             
             elif robot.estado == 'goto':
-                robot.goto(p.homing_angle_1 -15, p.homing_angle_2 + 15, 0)
-                if response == "ATGOTO":
-                    robot.estado = "rest"
+                robot.goto(p.homing_angle_1 -30, p.homing_angle_2 + 0, 0)
                 
 
             elif robot.estado == 'aprox':
-                # q1_aprox, q2_aprox = robot.inv_kinematics(robot.pos_aprox)
-                # robot.goto(q1_aprox, q2_aprox, -30)
-                pass
+                q = robot.inverse_kinematics(robot.pos_aprox)
+                q1, q2, q3 = np.rad2deg(q[0][0]), np.rad2deg(q[1][0]), int(np.rad2deg(q[2][0]))
+                q1 = (q1 + 180) % 360 - 180
+                q1 = np.round(q1, 2)
+                q2 += 180
+                q2 = (q2 + 180) % 360 - 180
+                q2 = np.round(q2, 2)
+                q3 = q1+q2-180+q3
+                q3 = (q3 + 180) % 360 - 180
+                q3 = int(q3)
+                print(q1, q2, q3)
+                print(robot.forward_kinematics(q))
+                input('confirm: ')
+                robot.goto(q1, q2, q3)
+                robot.estado = 'correct'
 
             elif robot.estado == 'correct':
                 pass
