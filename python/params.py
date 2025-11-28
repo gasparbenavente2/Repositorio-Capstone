@@ -13,8 +13,9 @@ baud_rate = 115200
 ###### Cinematica ######
 l1 = 0.44   # MEDIR
 l2 = 0.275    # MEDIR
-l_p_1 = 0.1 # MEDIR
-l_p_2 = 0.1 # MEDIR
+r1 = 0.03 # MEDIR
+r2 = 0.0804 # MEDIR
+r3 = 0.1896
 
 # Lookup table
 lup_a = 0.8934 # pendiente

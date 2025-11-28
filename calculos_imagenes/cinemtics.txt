@@ -1,0 +1,35 @@
+fk[0][0]
+l1*Cos(q1) + l2*Cos(q1 + q2) + r3*Cos(q1 + q2 + q3) - r1*Sin(q1 + q2) - r2*Sin(q1 + q2 + q3)
+
+fk[1][0]
+r1*Cos(q1 + q2) + r2*Cos(q1 + q2 + q3) + l1*Sin(q1) + l2*Sin(q1 + q2) + r3*Sin(q1 + q2 + q3)"
+
+fk[2][0]
+q1 + q2 + q3
+
+J[0][0]
+-(r1*Cos(q1 + q2)) - r2*Cos(q1 + q2 + q3) - l1*Sin(q1) - l2*Sin(q1 + q2) - r3*Sin(q1 + q2 + q3)
+
+J[0][1]
+-(r1*Cos(q1 + q2)) - r2*Cos(q1 + q2 + q3) - l2*Sin(q1 + q2) - r3*Sin(q1 + q2 + q3)
+
+J[0][2]
+-(r2*Cos(q1 + q2 + q3)) - r3*Sin(q1 + q2 + q3)
+
+J[1][0]
+l1*Cos(q1) + l2*Cos(q1 + q2) + r3*Cos(q1 + q2 + q3) - r1*Sin(q1 + q2) - r2*Sin(q1 + q2 + q3)
+
+J[1][1]
+l2*Cos(q1 + q2) + r3*Cos(q1 + q2 + q3) - r1*Sin(q1 + q2) - r2*Sin(q1 + q2 + q3)
+
+J[1][2]
+r3*Cos(q1 + q2 + q3) - r2*Sin(q1 + q2 + q3)
+
+J[2][0]
+1
+
+J[2][1]
+1
+
+J[2][2]
+1
