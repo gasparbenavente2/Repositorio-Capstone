@@ -2,7 +2,7 @@ import serial
 import cv2
 import time
 import params as p
-import robot2 as robot
+import robot 
 import vision
 import pandas as pd
 import numpy as np

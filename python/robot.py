@@ -6,11 +6,18 @@ import pygame
 class Robot:
     def __init__(self, serial_port, message_log):
         self.l1 = p.l1
-        self.l2 = p.l2   # VER calculos_imagenes/cinematica.JPG para mas info
+        self.l2 = p.l2
+        self.r1 = p.r1
+        self.r2 = p.r2  # VER calculos_imagenes/cinematica.JPG para mas info
+        self.r3 = p.r3
 
-        self.q = np.array([[p.homing_angle_1], [p.homing_angle_2 - np.pi], [0]])  # theta_1, theta_2, theta_3 ver imagen
+        self.q = np.array([[np.deg2rad(p.homing_angle_1)], [np.deg2rad(p.homing_angle_2) - np.pi], [np.deg2rad(0)]])  # theta_1, theta_2, theta_3 ver imagen
         self.pos_e_brazo = np.array([[0], [0]]) # Posicion absoluta extremo brazo
         self.pos_e_pistola = np.array([[0], [0]])   # Posicion absoluta extremo pistola
+
+        # Rangos de operación validos
+        self.q_min = np.array([[np.deg2rad(20)], [np.deg2rad(p.homing_angle_2 - 180)], [-50]])
+        self.q_max= np.array([[np.deg2rad(90)], [np.deg2rad(30)], [50]])
 
         self.serial = serial_port
         self.estado = 'rest'            # rest, homing, find_target, aprox, correct, insert, trigger, exit
@@ -19,7 +26,7 @@ class Robot:
         self.diff_list = []
         self.min_angle = -45
         self.max_angle = -5
-        self.best_angle = None
+        self.best_angle = None # grados respecto a horizontal
         self.pos_target = None
 
         # aprox
@@ -30,6 +37,11 @@ class Robot:
         self.update_pos()
     
     def goto(self, q1, q2, q3):
+        ''' Angulos en grados, q2 medido desde abajo. Lenguaje robot'''
+        q1 = np.clip(q1, 0, p.homing_angle_1)
+        q2 = np.clip(q2, p.homing_angle_2, 150)
+        q3 = np.clip(q3, -50, 50)
+
         formatted_q1 = f"{q1:06.2f}"  # total width 6: 3 digits + dot + 2 decimals
         formatted_q2 = f"{q2:06.2f}"
         formatted_q3 = f"{q3:+04d}"
@@ -45,18 +57,29 @@ class Robot:
         msg = msg.encode("utf-8")
         self.serial.write(msg)
 
-    def target_geometry(self):
-        """ encuentra posicion de target """
-        return None
+    def infer_target(self):
+        """ encuentra posicion de target. best angle en grados respecto horizontal """
+        q1 = np.deg2rad(p.homing_angle_1)
+        q2 = np.deg2rad(p.homing_angle_2) - np.pi
+        q3 = np.deg2rad(self.best_angle) - q1 - q2
+        p1 = self.forward_kinematics(np.array([[q1], [q2], [q3]]))
+
+        px = p1[0][0]
+        py = p1[1][0]
+
+        y = np.tan(np.deg2rad(self.best_angle)) * (p.d_tot - px)
+        height_hoyo = py + y
+        print(height_hoyo + p.height_eje1)
+
+        return np.array([[p.d_tot], [height_hoyo]])
 
     def aprox_geometry(self):
         """ encuentra posicion de aproximacion segun target """
-        return None
+        return np.array([[self.pos_target[0][0] - 0.05], [self.pos_target[1][0] + 0.05], [np.deg2rad(-30)]])
     
-    def forward_kinematics(self, q:np.array):
+    def forward_kinematics_legacy(self, q:np.array):
         """Calcula cinematica directa de extremo de brazo y retorna la pos absoluta. 
         Adaptado de Unidad 1 Fundamentos de robotica"""
-
         q1 = q[0][0]
         q2 = q[1][0] # OJO este es theta_2 PRIMA
 
@@ -76,81 +99,103 @@ class Robot:
 
         return [p1_f0, p2_f0]
     
-    def forward_kinematics_pistola(self, q:np.array):
-        """ toma en cuenta pistola ANGULOS EN RADIANES"""
-        posx, posy = self.forward_kinematics(np.array([q[0], q[1]]))[1]
-        posx = posx[0]
-        posy = posy[0] 
-        # print(posx)
-        # print(posy)
-        theta1 = q[0][0]
-        theta2 = q[1][0]
-        theta3 = q[2][0]
+    def forward_kinematics(self, q:np.array) -> np.array:
+        """Entra q1, q2, q3, sale x, y, phi (angulo abs pistola)"""
 
-        h_desfase_x = 0.03 * (np.sin(theta1 + theta2 - np.pi))
-        h_desfase_y = 0.03 * (np.cos(theta1 + theta2 - np.pi))
+        q1 = q[0][0]
+        q2 = q[1][0] # OJO este es theta_2 PRIMA
+        q3 = q[2][0]
 
-        pistol_x = 0.206 * np.cos(theta3 + np.deg2rad(23))
-        pistol_y = 0.206 * np.sin(theta3 + np.deg2rad(23))
-        # print(f"fierrox: {posx}")
-        # print(f"fierroy: {posy}")
-        # print(f"pistola_x: {posx + h_desfase_x + pistol_x} ")
-        # print(f"pistol_y: {posy + h_desfase_y + pistol_y}")
+        l1, l2 = self.l1, self.l2
+        r1, r2, r3 = self.r1, self.r2, self.r3
 
-        return np.array([[posx + h_desfase_x + pistol_x], [posy + h_desfase_y + pistol_y]])
-    
+        c1, s1 = np.cos(q1), np.sin(q1)
+        c12, s12 = np.cos(q1 + q2), np.sin(q1 + q2)
+        c123, s123 = np.cos(q1 + q2 + q3), np.sin(q1 + q2 + q3)
+
+        px = l1*c1 + l2*c12 + r3*c123 - r1*s12 - r2*s123
+        py = r1*c12 + r2*c123 + l1*s1 + l2*s12 + r3*s123
+        phi = q1 + q2 + q3
+
+        # phi = ((phi + 2 * np.pi) % (2 * np.pi)) - 2 * np.pi
+
+        return np.array([[px], [py], [phi]])
+
+        
     def update_pos(self):
+        pass
         self.p1 = self.forward_kinematics(self.q)[0]
         self.p2 = self.forward_kinematics(self.q)[1]
     
     def jacobiano(self, q: np.array):
-        """Recibe los ángulos q1 y q2 (en grados) y retorna la matriz jacobiana de la funcion fkine. Para
+        """Recibe los ángulos q1, q2 y q3(en grados) y retorna la matriz jacobiana de la funcion fkine. Para
         calculo de cinemática inversa"""
-        q1 = q[0][0]
-        q2 = q[1][0]
-        l1 = self.l1
-        l2 = self.l2
-        sinq1 = np.sin(q1)
-        cosq1 = np.cos(q1)
-        sinq12 = np.sin(q1 + q2)
-        cosq12 = np.cos(q1 + q2)
 
-        jq = np.array([
-            [(-l1 * sinq1 - l2 * sinq12), -l2 * sinq12],
-            [(l1 * cosq1 + l2 * cosq12), l2 * cosq12]
-        ])
-        return jq
+        q1 = q[0][0]
+        q2 = q[1][0] 
+        q3 = q[2][0]
+
+        l1, l2 = self.l1, self.l2
+        r1, r2, r3 = self.r1, self.r2, self.r3
+
+        c1, s1 = np.cos(q1), np.sin(q1)
+        c12, s12 = np.cos(q1 + q2), np.sin(q1 + q2)
+        c123, s123 = np.cos(q1 + q2 + q3), np.sin(q1 + q2 + q3)
+
+        J00 = -(r1*c12) - r2*c123 - l1*s1 - l2*s12 - r3*s123
+        J01 = -(r1*c12) - r2*c123 - l2*s12 - r3*s123
+        J02 = -(r2*c123) - r3*s123
+
+        J10 = l1*c1 + l2*c12 + r3*c123 - r1*s12 - r2*s123
+        J11 =  l2*c12 + r3*c123 - r1*s12 - r2*s123
+        J12 = r3*c123 - r2*s123
+
+        J20 = 1
+        J21 = 1
+        J22 = 1
+
+        return np.array([[J00, J01, J02],
+                        [J10, J11, J12],
+                        [J20, J21, J22]])
+
     
     
     def inverse_kinematics(self, p_target: np.array):
         start_time = time.time()
-        iter_lim = 10000
-        precision = 1e-6
-        # qk = np.array([[np.arctan2(p_target[1][0], p_target[0][0])], [-1]])   # q0. Punto de partida del algoritmo
-        qk = self.q[:2]
+        iter_lim = 1000
+        precision = 1e-4
+        # qk = self.
+        qk = np.array([[np.deg2rad(p.homing_angle_1)], [np.deg2rad(p.homing_angle_2) - np.pi], [np.deg2rad(-30)]])
         k = 0   # num of iterations
         stop_flag = False
 
         while stop_flag is not True:
-            pk = self.forward_kinematics(qk)[1]  # pos con config actual 
+            pk = self.forward_kinematics(qk)  # pos con config actual 
+            # print(pk)
             p_delta = p_target - pk # error de posicion
+            p_delta[2][0] = (p_delta[2][0] + np.pi) % (2*np.pi) - np.pi
 
             J = self.jacobiano(qk)
             # print(np.dot(np.linalg.pinv(J), p_delta))
             p_delta = (iter_lim - k)/iter_lim * p_delta
             qknew = (qk + np.dot(np.linalg.pinv(J), p_delta)) % (np.pi * 2)# calculo de nuevo intento de config
-            pknew = self.forward_kinematics(qknew)[1]    # calculo de nueva pos con nueva config
+            # qknew = np.clip(qknew, self.q_min, self.q_max)
+            pknew = self.forward_kinematics(qknew)# calculo de nueva pos con nueva config
 
-            error = np.linalg.norm(p_target - pknew)
+            error = np.linalg.norm(p_target[:2, :] - pknew[:2, :]) +  np.abs(p_target[2, :] - ((pknew[2, :] + np.pi) % (2*np.pi) - np.pi))
+            # error = np.linalg.norm(p_target - pknew)
+            #print(error)
+            # print(p_target - pknew)
+            # print(f"p_target: {p_target}, pknew: {pknew}, error: {error}")
             if error < precision:
                 stop_flag = True
                 end_time = time.time()
-                # print(f'Configuarcion encontrada en {k} iteraciones en {end_time - start_time} segundos')
+                print(f'Configuarcion encontrada en {k} iteraciones en {end_time - start_time} segundos')
                 self.q = qknew 
-                self.update_pos()
+                # self.update_pos()
                 return qknew
             elif k >= iter_lim:
-                # print(f"más de {iter_lim} iteraciones")
+                print(f"más de {iter_lim} iteraciones")
                 self.q = qknew
                 self.update_pos()
                 return qknew
@@ -163,6 +208,8 @@ class Robot:
                 qk = np.copy(qknew)
             pass
     
+
+
     def inverse_kinematics_pistola(self, p_target: np.array):
         """ toma en cuenta pistola"""
         theta4 = np.deg2rad(23) + self.q[2][0]
@@ -215,9 +262,9 @@ class Robot:
                             running = False
 
                 # forward kinematics
-                p1 = self.forward_kinematics(q)[0]
-                p2 = self.forward_kinematics(q)[1]
-                p_pistol = self.forward_kinematics_pistola(q)
+                p1 = self.forward_kinematics_legacy(q)[0]
+                p2 = self.forward_kinematics_legacy(q)[1]
+                p_pistol = self.forward_kinematics(q)
 
                 # extract coordinates (handles column vectors)
                 x0, y0 = 0.0, 0.0
@@ -264,25 +311,35 @@ class Robot:
             pygame.quit()
     
     
-    def infer_height_hoyo(self, theta):
-        pos_pistola = self.forward_kinematics_pistola(np.array([np.deg2rad([p.homing_angle_1]), np.deg2rad([p.homing_angle_2])]))
-        print(pos_pistola)
+
         
 
 if __name__ == "__main__":
     robot = Robot(None, None)
-    # q_test = robot.inverse_kinematics(np.array([[0.5],[0.1]]))
-    # q_test = robot.inverse_kinematics(np.array([[0.5],[0.4]]))
+
+    # q1 = np.deg2rad(p.homing_angle_1)
+    # q2 = np.deg2rad(p.homing_angle_2) - np.pi
+    # q3 = np.deg2rad(-30) - q1 - q2
+
+    # print(f"q1: {np.rad2deg(q1)}")
+    # print(f"q2: {np.rad2deg(q2)}")
+    # print(f"q3: {np.rad2deg(q3)}")
+
+    # fk_test = robot.forward_kinematics(np.array([[q1],[q2],[q3]]))
+    # print(fk_test)
+
+    # x = fk_test[0][0] + 0
+    # y = fk_test[1][0] - 0
+    # phi = np.deg2rad(-30)
 
 
-    # q_test = np.array([[np.pi / 4], [-np.pi / 2]])
-    #print(robot.forward_kinematics(q_test))
-    # robot.draw(robot.q)
-    # print(np.rad2deg(p.homing_angle_2) + 40)
-    # print(robot.correccion_theta2(np.rad2deg(p.homing_angle_2) + 40))
-    q = np.array([[np.deg2rad(p.homing_angle_1)], [np.deg2rad(p.homing_angle_2) - np.pi], [np.deg2rad(-30)]])
-    fwd_pistola = robot.forward_kinematics_pistola(q)
-    # robot.draw(q)
-    print(f"cinem directa campino: {fwd_pistola}")
-    
-    # robot.infer_height_hoyo(0)A
+    # test_inv = robot.inverse_kinematics(np.array([[x], [y], [phi]]))
+    # print(test_inv)
+    # print(robot.forward_kinematics(test_inv))
+
+    # robot.draw(test_inv)
+
+    # jacob = robot.jacobiano(robot.q)
+    #print(jacob.shape)
+
+    robot.infer_target()
