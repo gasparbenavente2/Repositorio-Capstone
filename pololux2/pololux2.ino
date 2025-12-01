@@ -58,11 +58,11 @@ float homing_theta2 = 64.45; //
 
 
 // Control macro
-bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
+bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = false;
 bool print_control = true; // imprimir señales en terminal
-float setpoint0 =  0;     // eslabon 1
-float setpoint1 =  0;  // eslabon 2
+float setpoint0 =  -30;     // eslabon 1
+float setpoint1 =  15;  // eslabon 2
 
 
 
@@ -74,8 +74,8 @@ int homing_m2_speed = -80;
 
 
 // Variables control PID motoes
-int firstPID = false;
-float pos_tol = 1.0; // Valor al que se considera alcanzado el angulo
+int firstPID = true;
+float pos_tol = 0.3; // Valor al que se considera alcanzado el angulo
 int max_integrador = 100; // No implementado 
 
 // ------------------- M1 -----------------------
@@ -89,8 +89,8 @@ float degM0_old_old1;
 int control1int = 0;
 bool m1_at_goto = false;
 
-float KP_1 = 12;
-float KI_1 = 2; // 2.0
+float KP_1 = 20;
+float KI_1 = 10; // 2.0
 float KD_1 = 0.35; // 0.35
 //float KD_1 = 0.00;
 
@@ -105,12 +105,12 @@ float degM1_old2;
 float degM1_old_old2;
 bool m2_at_goto = false;
 
-float KP_2 = 30;
-float KI_2 = 9.5;
-float KD_2 = 0.01;
+float KP_2 = 44;    // 30
+float KI_2 = 25;   // 9.5
+float KD_2 = 0.035;  // 0.01
 
-const int CMD_MAX = 600;   // max command magnitude you send to Sabertooth (adjust)
-const int CMD_MIN = -300;
+const int CMD_MAX = 500;   // max command magnitude you send to Sabertooth (adjust)
+const int CMD_MIN = -250;
 
 const float sampleTime_s = 0.010f; // sample time in seconds (match your loop; 10 ms = 0.01)
 
@@ -384,32 +384,42 @@ void loop() {
           if (fabs(error1) < pos_tol){  // deadband
             error1 = 0.0;
             m1_at_goto = true;
+            control1int = 0;
+          }
+          else{
+            m1_at_goto = false;
+            float dP_1 = KP_1 * (error1 - error_old1);
+            float dI_1 = KI_1 * dt * error1;
+            float dD_1 = -KD_1 * (degM0 - 2.0f * degM0_old1 + degM0_old_old1) / dt;
+            control1  = old_control1 + dP_1 + dI_1 + dD_1;
+
+            // control1 = old_control1 + (KP_1 + dt * KI_1 + KD_1 / dt) * error1 + (-KP_1 - (2 * KD_1) / dt) * error_old1 + (KD_1 / dt) * error_old_old1;
+            control1 = clip(control1, CMD_MIN, CMD_MAX); // Clipping
+            control1int = int(control1);
           }
           
-          float dP_1 = KP_1 * (error1 - error_old1);
-          float dI_1 = KI_1 * dt * error1;
-          float dD_1 = -KD_1 * (degM0 - 2.0f * degM0_old1 + degM0_old_old1) / dt;
-          control1  = old_control1 + dP_1 + dI_1 + dD_1;
-
-          // control1 = old_control1 + (KP_1 + dt * KI_1 + KD_1 / dt) * error1 + (-KP_1 - (2 * KD_1) / dt) * error_old1 + (KD_1 / dt) * error_old_old1;
-          control1 = clip(control1, CMD_MIN, CMD_MAX); // Clipping
-          control1int = int(control1);
+          
 
           // --- Motor 1 PID ---
           error2 = setpoint1 - degM1;
           if (fabs(error2) < pos_tol){  // deadband
             error2 = 0.0;
             m2_at_goto = true;
+            control2int = 0;
+          }
+          else{
+            m2_at_goto = false;
+            float dP_2 = KP_2 * (error2 - error_old2);
+            float dI_2 = KI_2 * dt * error2;
+            float dD_2 = -KD_2 * (degM1 - 2.0f * degM1_old2 + degM1_old_old2) / dt;
+            control2 = old_control2 + dP_2 + dI_2 + dD_2;
+            // Serial.println(control2);
+            // control2 = old_control2 + (KP_2 + dt * KI_2 + KD_2 / dt) * error2 + (-KP_2 - (2 * KD_2) / dt) * error_old2 + (KD_2 / dt) * error_old_old2;
+            control2 = clip(control2, CMD_MIN, CMD_MAX);
+            control2int = int(control2);
           }
           
-          float dP_2 = KP_2 * (error2 - error_old2);
-          float dI_2 = KI_2 * dt * error2;
-          float dD_2 = -KD_2 * (degM1 - 2.0f * degM1_old2 + degM1_old_old2) / dt;
-          control2 = old_control2 + dP_2 + dI_2 + dD_2;
-
-          // control2 = old_control2 + (KP_2 + dt * KI_2 + KD_2 / dt) * error2 + (-KP_2 - (2 * KD_2) / dt) * error_old2 + (KD_2 / dt) * error_old_old2;
-          control2 = clip(control2, CMD_MIN, CMD_MAX);
-          control2int = int(control2);
+          
 
           if (m1_at_goto && m2_at_goto){
             Serial.println("ATGOTO");
