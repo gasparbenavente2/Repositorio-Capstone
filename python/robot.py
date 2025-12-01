@@ -10,6 +10,8 @@ class Robot:
         self.r1 = p.r1
         self.r2 = p.r2  # VER calculos_imagenes/cinematica.JPG para mas info
         self.r3 = p.r3
+        self.r2_cam = p.r2_cam
+        self.r3_cam = p.r3_cam
 
         self.q = np.array([[np.deg2rad(p.homing_angle_1)], [np.deg2rad(p.homing_angle_2) - np.pi], [np.deg2rad(0)]])  # theta_1, theta_2, theta_3 ver imagen
         self.pos_e_brazo = np.array([[0], [0]]) # Posicion absoluta extremo brazo
@@ -24,7 +26,7 @@ class Robot:
 
         # find_target
         self.diff_list = []
-        self.min_angle = -45
+        self.min_angle = -50
         self.max_angle = -5
         self.best_angle = None # grados respecto a horizontal
         self.pos_target = None
@@ -62,7 +64,9 @@ class Robot:
         q1 = np.deg2rad(p.homing_angle_1)
         q2 = np.deg2rad(p.homing_angle_2) - np.pi
         q3 = np.deg2rad(self.best_angle) - q1 - q2
-        p1 = self.forward_kinematics(np.array([[q1], [q2], [q3]]))
+        p1 = self.forward_kinematics_camara(np.array([[q1], [q2], [q3]]))
+
+        print('pos x camara:', p1[0][0], 'pos y camara:', p1[1][0])
 
         px = p1[0][0]
         py = p1[1][0]
@@ -71,11 +75,11 @@ class Robot:
         height_hoyo = py + y
         print(height_hoyo + p.height_eje1)
 
-        return np.array([[p.d_tot], [height_hoyo]])
+        return np.array([[p.d_tot], [height_hoyo + 0.06]])          # correccion camara
 
     def aprox_geometry(self):
         """ encuentra posicion de aproximacion segun target """
-        return np.array([[self.pos_target[0][0] - 0.05], [self.pos_target[1][0] + 0.05], [np.deg2rad(-30)]])
+        return np.array([[self.pos_target[0][0] - 0.05], [self.pos_target[1][0] + 0.00], [np.deg2rad(-30)]])
     
     def forward_kinematics_legacy(self, q:np.array):
         """Calcula cinematica directa de extremo de brazo y retorna la pos absoluta. 
@@ -108,6 +112,28 @@ class Robot:
 
         l1, l2 = self.l1, self.l2
         r1, r2, r3 = self.r1, self.r2, self.r3
+
+        c1, s1 = np.cos(q1), np.sin(q1)
+        c12, s12 = np.cos(q1 + q2), np.sin(q1 + q2)
+        c123, s123 = np.cos(q1 + q2 + q3), np.sin(q1 + q2 + q3)
+
+        px = l1*c1 + l2*c12 + r3*c123 - r1*s12 - r2*s123
+        py = r1*c12 + r2*c123 + l1*s1 + l2*s12 + r3*s123
+        phi = q1 + q2 + q3
+
+        # phi = ((phi + 2 * np.pi) % (2 * np.pi)) - 2 * np.pi
+
+        return np.array([[px], [py], [phi]])
+    
+    def forward_kinematics_camara(self, q:np.array) -> np.array:
+        """Entra q1, q2, q3, sale x, y, phi (angulo abs pistola)"""
+
+        q1 = q[0][0]
+        q2 = q[1][0] # OJO este es theta_2 PRIMA
+        q3 = q[2][0]
+
+        l1, l2 = self.l1, self.l2
+        r1, r2, r3 = self.r1, self.r2_cam, self.r3_cam
 
         c1, s1 = np.cos(q1), np.sin(q1)
         c12, s12 = np.cos(q1 + q2), np.sin(q1 + q2)

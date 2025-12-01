@@ -5,11 +5,10 @@ Servo servo1;
 int s1pos1 = 100;               // angulo de partida y de comando servo 1
 int s1pos1_new = s1pos1;
 int s_com_para_90 = 132;        // Angulo comandado a servo para que pistola este a 0 grados (abs) en pos homing. DEPENDE DE HOMING
-int s1pos1limit = 100;
 int setpoint_servo = 0; // Setpoint servo, angulo absoluto
 int s1_command = 100;
 float s1_command_f = s1_command;
-int s1_target = s1_command;
+int s1_target = s_com_para_90;
 float s1_increment = 0.5; // Velocidad del "culatazo"
 // Servo 2
 Servo servo2;
@@ -53,16 +52,16 @@ float revM0 = 0;
 float revM1 = 0;
 float degM0 = 0;
 float degM1 = 0;
-float homing_theta1 = 87.0; // Angulo al que queda theta 1 despues del homing 
-float homing_theta2 = 64.45; // 
+float homing_theta1 = 85.0; // Angulo al que queda theta 1 despues del homing 
+float homing_theta2 = 55.0; // 
 
 
 // Control macro
-bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
+bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = false;
 bool print_control = true; // imprimir señales en terminal
-float setpoint0 =  -30;     // eslabon 1
-float setpoint1 =  15;  // eslabon 2
+float setpoint0 =  10;     // eslabon 1
+float setpoint1 =  10;  // eslabon 2
 
 
 
@@ -146,7 +145,7 @@ int servo_horizon_to_command_2(int degM0, int degM1, int phi){
 
   int theta1 = degM0 + homing_theta1; // Angulo absuluto (bases) theta 1
   int theta2 = degM1 + homing_theta2; // Angulo absuluto (bases) theta 2
-  int theta3 = phi - theta1 - theta2 + 180;
+  int theta3 = phi - theta1 - theta2 + 180 + 90;
   int s_command = servo_theta_3_to_command(theta3);
 
   return s_command;
@@ -250,7 +249,7 @@ void setup() {
 
   // Servo 1
   servo1.attach(9);
-  servo1.write(100);
+  //servo1.write(100);
 
   delay(1000);
 
@@ -281,7 +280,7 @@ void loop() {
         float q2 = instruccion.substring(13, 19).toFloat() - homing_theta2;
         int q3 = instruccion.substring(20, 24).toInt();
         setpoint_servo = q3;
-        s1pos1_new = servo_horizon_to_command(q1 + homing_theta1, q2 + homing_theta2, q3);
+        s1pos1_new = servo_horizon_to_command_2(q1 + homing_theta1, q2 + homing_theta2, q3);
 
         error1 = 0;
         error2 = 0;
@@ -439,7 +438,9 @@ void loop() {
         }
 
         // PROBAR
-        // s1_target = servo_horizon_to_command_2(degM0, degM1, setpoint_servo);
+        s1_target = servo_horizon_to_command_2(int(degM0), int(degM1), setpoint_servo);
+        //s1_target = servo_theta_3_to_command(90);
+
         // if (s1_target - s1_command > 0){
         //   // target mayor a command actual
         //   s1_command_f = s1_command + s1_increment;
@@ -454,7 +455,7 @@ void loop() {
         // s1_command = int(s1_command_f); // Trunca para abajo
         // servo1.write(s1_command);
 
-        servo1.write(s1pos1_new);
+        servo1.write(s1_target);
         String cmd1 = "M1:" + String(control1int);
         String cmd2 = "M2:" + String(control2int);
         Serial1.println(cmd2);
@@ -474,7 +475,7 @@ void loop() {
           Serial.print(control2int);
           Serial.print(",  ");
           Serial.print("command servo: ");
-          Serial.print(s1pos1);
+          Serial.print(s1_target);
           Serial.println(",  ");
         }
 

@@ -22,6 +22,7 @@ if __name__ == "__main__":
     q2 = np.deg2rad(p.homing_angle_2) - np.pi
     q3 = - q1 - q2
     robot.q = np.array([[q1], [q2], [q3]])
+    init_find = True
     cap = cv2.VideoCapture(0)
 
     old_time = time.time()
@@ -81,42 +82,50 @@ if __name__ == "__main__":
                 print(pos)
 
             elif robot.estado == 'find_target':
+                if init_find:
+                    find_time = time.time()
+                    robot.goto(p.homing_angle_1, p.homing_angle_2, target_angle)
+
+                init_find = False
                 robot.best_angle = None
-                if robot.best_angle:
-                    print('Listo con target')
-                    robot.estado = 'rest'
-                    robot.pos_target = robot.infer_target()
-                    robot.pos_aprox = robot.aprox_geometry()
-                else:
-
-                    if target_angle < robot.max_angle + 1:
-                        robot.goto(p.homing_angle_1, p.homing_angle_2, target_angle)
-
-                        ret, img = cap.read()
-                        
-                        if ret:
-                            result = vision.get_diff_y(img)
-                            
-                            if result:
-                                diff_y = result['diff_y']
-                                robot.diff_list.append([target_angle, np.abs(diff_y)])
-                        target_angle += 1
-                    else:
-                        df = pd.DataFrame(robot.diff_list, columns=['angle', 'diff_y'])
-                        df = df.sort_values(by='diff_y', ascending=True)
-                        df.to_csv('diff_list.csv', index=False)
-
-                        robot.best_angle = int(df.iloc[0]['angle']) - 1
-                        robot.pos_target = robot.infer_target()
-                        robot.pos_aprox = robot.aprox_geometry()
-
-                        robot.goto(p.homing_angle_1, p.homing_angle_2, robot.best_angle)
-
+                if time.time() - find_time > 2:
+                    if robot.best_angle:
                         print('Listo con target')
                         robot.estado = 'rest'
+                        robot.pos_target = robot.infer_target()
+                        print('altura hoyo:', robot.pos_target[1][0])
+                        robot.pos_aprox = robot.aprox_geometry()
+                    else:
+
+                        if target_angle < robot.max_angle + 1:
+                            robot.goto(p.homing_angle_1, p.homing_angle_2, target_angle)
+
+                            ret, img = cap.read()
+                            
+                            if ret:
+                                result = vision.get_diff_y(img)
+                                
+                                if result:
+                                    diff_y = result['diff_y']
+                                    robot.diff_list.append([target_angle, np.abs(diff_y)])
+                            target_angle += 1
+                        else:
+                            df = pd.DataFrame(robot.diff_list, columns=['angle', 'diff_y'])
+                            df = df.sort_values(by='diff_y', ascending=True)
+                            df.to_csv('diff_list.csv', index=False)
+
+                            robot.best_angle = int(df.iloc[0]['angle']) - 0     # -1
+                            robot.pos_target = robot.infer_target()
+                            print('altura hoyo desde suelo:', np.round(robot.pos_target[1][0], 3) + p.height_eje1)
+                            robot.pos_aprox = robot.aprox_geometry()
+
+                            robot.goto(p.homing_angle_1, p.homing_angle_2, robot.best_angle)
+
+                            print('Listo con target')
+                            robot.estado = 'rest'
             
             elif robot.estado == 'goto':
-                robot.goto(p.homing_angle_1 -30, p.homing_angle_2 + 0, 0)
+                robot.goto(p.homing_angle_1, p.homing_angle_2 + 30, 0)
                 
 
             elif robot.estado == 'aprox':
@@ -131,8 +140,11 @@ if __name__ == "__main__":
                 q3 = (q3 + 180) % 360 - 180
                 q3 = int(q3)
                 print(q1, q2, q3)
-                print(robot.forward_kinematics(q))
+                p_final = robot.forward_kinematics(q)
+                print('x:', np.round(p_final[0][0], 3), 'y:', np.round(p_final[1][0] + p.height_eje1, 3))
                 input('confirm: ')
+                q1 += 5         # correccion M1
+                q3 += 5         # correccion M1
                 robot.goto(q1, q2, q3)
                 robot.estado = 'correct'
 
