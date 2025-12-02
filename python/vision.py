@@ -72,6 +72,17 @@ def get_diff_y(img):
         'ratio': np.sum(binary_full)/(N*M)
     }
 
+def corregir(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    binary_circle = (gray < 50).astype(np.uint8)
+    
+    white_coords = np.column_stack(np.where(binary_circle == 1))
+
+    top_y = np.min(white_coords[:, 0])
+
+    return top_y
+
 def process_image(image_path):
     """
     Processes an image to find the vertical difference (diff_y) between

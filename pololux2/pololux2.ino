@@ -10,6 +10,8 @@ int s1_command = 100;
 float s1_command_f = s1_command;
 int s1_target = s_com_para_90;
 float s1_increment = 0.5; // Velocidad del "culatazo"
+bool sent_at_goto = false; //Campino´s work
+String estado = "HOLA";
 // Servo 2
 Servo servo2;
 
@@ -52,17 +54,17 @@ float revM0 = 0;
 float revM1 = 0;
 float degM0 = 0;
 float degM1 = 0;
-float homing_theta1 = 85.0; // Angulo al que queda theta 1 despues del homing 
+float homing_theta1 = 81.8; // Angulo al que queda theta 1 despues del homing 
 float homing_theta2 = 55.0; // 
 
 
 // Control macro
-bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
+bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = false;
 bool print_control = true; // imprimir señales en terminal
-float setpoint0 =  10;     // eslabon 1
-float setpoint1 =  10;  // eslabon 2
-
+float setpoint0 =  -0;     // eslabon 1
+float setpoint1 =  -15;  // eslabon 2
+bool new_message = false;
 
 
 // homing
@@ -88,9 +90,9 @@ float degM0_old_old1;
 int control1int = 0;
 bool m1_at_goto = false;
 
-float KP_1 = 20;
-float KI_1 = 10; // 2.0
-float KD_1 = 0.35; // 0.35
+float KP_1 = 30;
+float KI_1 = 42; // 2.0
+float KD_1 = 0.4; // 0.35
 //float KD_1 = 0.00;
 
 // ------------------- M2 -----------------------
@@ -104,9 +106,9 @@ float degM1_old2;
 float degM1_old_old2;
 bool m2_at_goto = false;
 
-float KP_2 = 44;    // 30
-float KI_2 = 25;   // 9.5
-float KD_2 = 0.035;  // 0.01
+float KP_2 = 65;    // 30
+float KI_2 = 67;   // 9.5
+float KD_2 = 0.015;  // 0.01
 
 const int CMD_MAX = 500;   // max command magnitude you send to Sabertooth (adjust)
 const int CMD_MIN = -250;
@@ -252,15 +254,6 @@ void setup() {
   //servo1.write(100);
 
   delay(1000);
-
-  // Servo 2
-  // servo2.attach(8);
-  // delay(1000);
-  // servo2.write(60);
-  // delay(2000);
-  // servo2.write(75);
-  // delay(2000);
-  // servo2.write(60);
 }
 
 
@@ -270,6 +263,7 @@ void loop() {
     
     if (instruccion[0] == 'A' && newMsg) {
       String estado = instruccion.substring(1, 5);
+      new_message = true;
 
       if (estado == "GOTO"){
         firstPID = true;  // Resetea error, evita dKick.
@@ -280,10 +274,8 @@ void loop() {
         float q2 = instruccion.substring(13, 19).toFloat() - homing_theta2;
         int q3 = instruccion.substring(20, 24).toInt();
         setpoint_servo = q3;
-        s1pos1_new = servo_horizon_to_command_2(q1 + homing_theta1, q2 + homing_theta2, q3);
-
-        error1 = 0;
-        error2 = 0;
+        // s1pos1_new = servo_horizon_to_command_2(q1 + homing_theta1, q2 + homing_theta2, q3);
+        
         setpoint0 = q1;
         setpoint1 = q2;
         m1_at_goto = false;
@@ -294,6 +286,23 @@ void loop() {
         homing_m1 = true;
         homing_m2 = true;
         PID_control = false;
+      }
+      else if (estado == "SRVO"){
+        int q3 = instruccion.substring(20, 24).toInt();
+        setpoint_servo = q3;
+        m1_at_goto = false;
+        m2_at_goto = false;
+      }
+      else if (estado == "TRGR"){
+          // Servo 2
+          servo2.attach(8);
+          servo2.write(95);
+          delay(2000);
+          servo2.write(80);
+          // delay(2000);
+          
+          // delay(2000);
+          // servo2.write(80);
       }
     }
   }
@@ -341,6 +350,9 @@ void loop() {
           error_old_old2 = error2;
           degM1_old2 = degM1;
           degM1_old_old2 = degM1;
+
+          old_control1 = 0;
+          old_control2 = 0;
           
           firstPID = false;
         }
@@ -372,6 +384,7 @@ void loop() {
           if (!homing_m1 && !homing_m2 && homing){
             Serial.println("AHOME");
             homing = false;
+            new_message = false;
           }
         }
 
@@ -420,9 +433,18 @@ void loop() {
           
           
 
-          if (m1_at_goto && m2_at_goto){
-            Serial.println("ATGOTO");
+          if (m1_at_goto && m2_at_goto) {
+            if (!sent_at_goto) {
+                Serial.println("ATGOTO:");
+                // Serial.print(int(degM0)); Serial.print(","); Serial.println(int(degM1));
+                sent_at_goto = true;
+            }
+            new_message = false;
+          } else {
+            // cuando ya no estamos en posición, permitimos re-envío futuro
+            sent_at_goto = false;
           }
+
 
           // Actualización variables para siguiente ciclo
           error_old_old1 = error_old1;

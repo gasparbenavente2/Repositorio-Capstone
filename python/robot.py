@@ -22,7 +22,7 @@ class Robot:
         self.q_max= np.array([[np.deg2rad(90)], [np.deg2rad(30)], [50]])
 
         self.serial = serial_port
-        self.estado = 'rest'            # rest, homing, find_target, aprox, correct, insert, trigger, exit
+        self.estado = 'home'            # rest, homing, find_target, aprox, correct, insert, trigger, exit
 
         # find_target
         self.diff_list = []
@@ -30,9 +30,16 @@ class Robot:
         self.max_angle = -5
         self.best_angle = None # grados respecto a horizontal
         self.pos_target = None
+        self.altura_hoyo_suelo = None
 
         # aprox
         self.pos_aprox = None
+
+        # correct
+        self.pos_correct = None
+
+        # enchufar
+        self.pos_enchufe = None
 
         self.message_log = message_log
 
@@ -54,8 +61,29 @@ class Robot:
         self.message_log.append(f"Enviado: {msg}")
         self.serial.write(msg)
 
+    def goto_servo(self, q1, q2, q3):
+        ''' Angulos en grados, q2 medido desde abajo. Lenguaje robot'''
+        q1 = np.clip(q1, 0, p.homing_angle_1)
+        q2 = np.clip(q2, p.homing_angle_2, 150)
+        q3 = np.clip(q3, -50, 50)
+
+        formatted_q1 = f"{q1:06.2f}"  # total width 6: 3 digits + dot + 2 decimals
+        formatted_q2 = f"{q2:06.2f}"
+        formatted_q3 = f"{q3:+04d}"
+
+        msg = f"ASRVO {formatted_q1} {formatted_q2} {formatted_q3};"
+        msg = msg.encode("utf-8")
+        # print(f"Enviado: {msg}")
+        self.message_log.append(f"Enviado: {msg}")
+        self.serial.write(msg)
+
     def home(self):
         msg = "AHOME;"
+        msg = msg.encode("utf-8")
+        self.serial.write(msg)
+    
+    def gatillo(self):
+        msg = "ATRGR;"
         msg = msg.encode("utf-8")
         self.serial.write(msg)
 
@@ -79,7 +107,34 @@ class Robot:
 
     def aprox_geometry(self):
         """ encuentra posicion de aproximacion segun target """
-        return np.array([[self.pos_target[0][0] - 0.05], [self.pos_target[1][0] + 0.00], [np.deg2rad(-30)]])
+        return np.array([[self.pos_target[0][0] - 0.05], [self.pos_target[1][0] - 0.03], [np.deg2rad(-30)]])
+    
+    def correccion(self, top_y):
+        """calcula cm a partir de diferencia en pixeles"""
+        return (-top_y/100 + 5.8)/100
+
+    def enchufar(self, ):
+        deltax, deltay = self.altura_hoyo_suelo/8 + 1.5/100, -0.01
+        print('delta x', deltax)
+        self.pos_enchufe = self.pos_correct
+
+        self.pos_enchufe[0][0] += deltax
+        self.pos_enchufe[1][0] += deltay
+
+        q = self.inverse_kinematics(self.pos_enchufe)
+        q1, q2, q3 = np.rad2deg(q[0][0]), np.rad2deg(q[1][0]), int(np.rad2deg(q[2][0]))
+        q1 = (q1 + 180) % 360 - 180
+        q1 = np.round(q1, 2)
+        q2 += 180
+        q2 = (q2 + 180) % 360 - 180
+        q2 = np.round(q2, 2)
+        q3 = q1+q2-180+q3
+        q3 = (q3 + 180) % 360 - 180
+        q3 = int(q3)
+        q1 += 5         # correccion M1
+        q3 += 5         # correccion M1
+
+        return (q1, q2, q3)
     
     def forward_kinematics_legacy(self, q:np.array):
         """Calcula cinematica directa de extremo de brazo y retorna la pos absoluta. 

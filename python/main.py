@@ -6,6 +6,7 @@ import robot
 import vision
 import pandas as pd
 import numpy as np
+from vision import corregir
 
 # puerto serial
 ser = serial.Serial(
@@ -24,48 +25,42 @@ if __name__ == "__main__":
     robot.q = np.array([[q1], [q2], [q3]])
     init_find = True
     cap = cv2.VideoCapture(0)
+    target_angle = robot.min_angle
+    aprox_done = False
+    correct_done = False
+    enchufar_done = False
 
     old_time = time.time()
-    # robot.goto(p.homing_angle_1, p.homing_angle_2, robot.min_angle)
     while True:
         if ser.in_waiting > 0:
             response = ser.readline()
-            # print(response)
             response = response.decode().strip()
             message_log.append(response)
             print("Arduino:", response)
 
             if response == 'AHOME':
                 print("Response home")
+                if p.manual:
+                    robot.estado = 'rest'
+                else:
+                    robot.estado = 'find_target'
+            if "ATGOTO" in response and robot.estado == 'standby':
                 robot.estado = 'rest'
-                pass
-            if response == "ATGOTO" and robot.estado in ['goto', 'aprox']:
-                # robot.estado = "rest"
-                pass
+            if not p.manual:
+                if "ATGOTO" in response and robot.estado == 'aprox':
+                    robot.estado = 'correct'
+                elif "ATGOTO" in response and robot.estado == 'correct':
+                    robot.estado = 'enchufar'
+                elif "ATGOTO" in response and robot.estado == 'enchufar':
+                    robot.estado = 'trigger'
 
         current_time = time.time()
         if current_time >= old_time + p.dt:
             old_time = time.time()
-            # msg = "AGOTO 000.00 000.00 000;"
-            # msg = msg.encode("utf-8")
-            # ser.write(msg)
-            # print(f"Enviado: {msg}")
-            # time.sleep(0.004)
-
-            # time.sleep(0.10)
-            # try:
-            #     response = ser.readline().decode('utf-8').strip()
-            #     if response:
-            #         print("Arduino:", response)
-            # except UnicodeDecodeError:
-            #     pass
 
             if robot.estado == 'rest':
-                target_angle = robot.min_angle
-                s = input("Press s to start, g for goto, h for home, f for find target, a for aprox: ")
-                if s == 's':
-                    robot.estado = 'homing'
-                elif s == "g":
+                s = input("Press s to start, g for goto, h for home, f for find target, a for aprox, c for correct, e for enchufar, t for trigger: ")
+                if s == "g":
                     robot.estado = 'goto'
                 elif s == "h":
                     robot.estado = 'homing'
@@ -73,6 +68,12 @@ if __name__ == "__main__":
                     robot.estado = 'find_target'
                 elif s == 'a':
                     robot.estado = 'aprox'
+                elif s == 'c':
+                    robot.estado = 'correct'
+                elif s == 'e':
+                    robot.estado = 'enchufar'
+                elif s == 't':
+                    robot.estado = 'trigger'
 
             elif robot.estado == 'homing':
                 robot.home()
@@ -88,7 +89,7 @@ if __name__ == "__main__":
 
                 init_find = False
                 robot.best_angle = None
-                if time.time() - find_time > 2:
+                if time.time() - find_time > 4:
                     if robot.best_angle:
                         print('Listo con target')
                         robot.estado = 'rest'
@@ -98,7 +99,7 @@ if __name__ == "__main__":
                     else:
 
                         if target_angle < robot.max_angle + 1:
-                            robot.goto(p.homing_angle_1, p.homing_angle_2, target_angle)
+                            robot.goto_servo(p.homing_angle_1, p.homing_angle_2, target_angle)
 
                             ret, img = cap.read()
                             
@@ -116,19 +117,23 @@ if __name__ == "__main__":
 
                             robot.best_angle = int(df.iloc[0]['angle']) - 0     # -1
                             robot.pos_target = robot.infer_target()
-                            print('altura hoyo desde suelo:', np.round(robot.pos_target[1][0], 3) + p.height_eje1)
+                            robot.altura_hoyo_suelo = np.round(robot.pos_target[1][0], 3) + p.height_eje1
+                            print('altura hoyo desde suelo:', robot.altura_hoyo_suelo)
                             robot.pos_aprox = robot.aprox_geometry()
 
                             robot.goto(p.homing_angle_1, p.homing_angle_2, robot.best_angle)
 
                             print('Listo con target')
-                            robot.estado = 'rest'
+                            if p.manual:
+                                robot.estado = 'rest'
+                            else:
+                                robot.estado = 'aprox'
             
             elif robot.estado == 'goto':
-                robot.goto(p.homing_angle_1, p.homing_angle_2 + 30, 0)
-                
+                robot.goto(p.homing_angle_1 + 0, p.homing_angle_2 + 20, 0) 
+                robot.estado = 'standby'
 
-            elif robot.estado == 'aprox':
+            elif robot.estado == 'aprox' and not aprox_done:
                 q = robot.inverse_kinematics(robot.pos_aprox)
                 q1, q2, q3 = np.rad2deg(q[0][0]), np.rad2deg(q[1][0]), int(np.rad2deg(q[2][0]))
                 q1 = (q1 + 180) % 360 - 180
@@ -142,22 +147,71 @@ if __name__ == "__main__":
                 print(q1, q2, q3)
                 p_final = robot.forward_kinematics(q)
                 print('x:', np.round(p_final[0][0], 3), 'y:', np.round(p_final[1][0] + p.height_eje1, 3))
-                input('confirm: ')
+                # input('confirm: ')
                 q1 += 5         # correccion M1
                 q3 += 5         # correccion M1
                 robot.goto(q1, q2, q3)
-                robot.estado = 'correct'
+                aprox_done = True
+                if p.manual:
+                    robot.estado = 'standby'
 
-            elif robot.estado == 'correct':
-                pass
-            elif robot.estado == 'insert':
-                pass
+            elif robot.estado == 'correct' and not correct_done:
+                ret, img = cap.read()
+                print('correct')
+                            
+                if ret:
+                    top_y = corregir(img)
+
+                    delta = robot.correccion(top_y)
+
+                    robot.pos_correct = robot.pos_aprox
+                    robot.pos_correct[1][0] += delta
+                    print('nueva pos:', robot.pos_correct)
+                    print('mover:', delta, 'cm')
+                    # input('confirmar:')
+                    q = robot.inverse_kinematics(robot.pos_correct)
+                    q1, q2, q3 = np.rad2deg(q[0][0]), np.rad2deg(q[1][0]), int(np.rad2deg(q[2][0]))
+                    q1 = (q1 + 180) % 360 - 180
+                    q1 = np.round(q1, 2)
+                    q2 += 180
+                    q2 = (q2 + 180) % 360 - 180
+                    q2 = np.round(q2, 2)
+                    q3 = q1+q2-180+q3
+                    q3 = (q3 + 180) % 360 - 180
+                    q3 = int(q3)
+                    q1 += 5         # correccion M1
+                    q3 += 5         # correccion M1
+
+                    robot.goto(q1, q2, q3)
+                    correct_done = True
+                    if p.manual:
+                        robot.estado = 'standby'
+                else:
+                    print('no funciona camara')
+
+            elif robot.estado == 'enchufar' and not enchufar_done:
+                q1, q2, q3 = robot.enchufar()
+                # input('confirmar:')
+
+                robot.goto(q1, q2, q3)
+
+                enchufar_done = True
+
+                if p.manual:
+                    robot.estado = 'standby'
+                
             elif robot.estado == 'trigger':
-                pass
+                robot.gatillo()
+                robot.estado = 'rest'
+                
             elif robot.estado == 'exit':
                 pass
             elif robot.estado == 'test':
                 robot.goto(p.homing_angle_1-20, p.homing_angle_2+20, 100)
+            
+            elif robot.estado == 'standby':
+                pass
+            print("estado", robot.estado)
 
             # if len(message_log) > 0: 
             #     print(message_log[-1])

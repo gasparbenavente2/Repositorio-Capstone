@@ -26,5 +26,8 @@ lup_a = 0.8934 # pendiente
 lup_b = 6.2105 # intercept
 
 # angulos homing: angulos absolutos a los que queda el brazo al hacer homing
-homing_angle_1 = 85.00  # desde horizontal hacia arriba
+homing_angle_1 = 81.80  # desde horizontal hacia arriba
 homing_angle_2 = 55.00  # desde eslabon 1 a eslabon 2   
+
+# modo manual
+manual = False

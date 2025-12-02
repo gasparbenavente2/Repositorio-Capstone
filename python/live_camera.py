@@ -1,5 +1,7 @@
 import cv2
-from vision import get_diff_y
+from vision import get_diff_y, corregir
+import numpy as np
+import sys
 
 # Inicializar la cámara (0 suele ser la cámara predeterminada/USB)
 cap = cv2.VideoCapture(0)
@@ -19,10 +21,12 @@ while True:
         break
 
     # Calcular diff_y y obtener detalles
-    result = get_diff_y(frame)
+    if ret:
+        result = get_diff_y(frame)
+        top_y = corregir(frame)
 
     # Mostrar información en el frame
-    if result is not None:
+    if result is not None and np.abs(top_y) > 0:
         diff_y = result['diff_y']
         circle_center = result['circle_center']
         img_center = result['img_center']
@@ -41,11 +45,11 @@ while True:
         # Dibujar línea entre centros (Amarillo)
         cv2.line(frame, img_center, circle_center, (0, 255, 255), 2)
 
-        text = f"Diff Y: {diff_y} | Ratio: {ratio*100:.2f}%"
+        text = f"Diff Y: {diff_y} | Ratio: {ratio*100:.2f}% | top Y {top_y}"
         color = (0, 255, 0) # Verde si se detecta
     else:
-        text = "Diff Y: N/A"
-        color = (0, 0, 255) # Rojo si no se detecta
+        text = f"Diff Y: N/A | top Y {top_y}"
+        color = (0, 255, 0) # Rojo si no se detecta
 
     cv2.putText(frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
 
@@ -54,7 +58,7 @@ while True:
 
     # Salir si se presiona 'q'
     if cv2.waitKey(1) == ord('q'):
-        break
+        sys.exit()
 
 # Liberar la cámara y cerrar ventanas
 cap.release()
