@@ -23,12 +23,20 @@ if __name__ == "__main__":
     q2 = np.deg2rad(p.homing_angle_2) - np.pi
     q3 = - q1 - q2
     robot.q = np.array([[q1], [q2], [q3]])
-    init_find = True
     cap = cv2.VideoCapture(0)
     target_angle = robot.min_angle
+
+    init_find = True
+    init_aprox = True
+    init_correct = True
+    init_enchufar = True
+    init_trigger = True
+    init_exit = True
+
     aprox_done = False
     correct_done = False
     enchufar_done = False
+    exit_done = False
 
     old_time = time.time()
     while True:
@@ -53,6 +61,8 @@ if __name__ == "__main__":
                     robot.estado = 'enchufar'
                 elif "ATGOTO" in response and robot.estado == 'enchufar':
                     robot.estado = 'trigger'
+                elif "ATGOTO" in response and robot.estado == 'exit':
+                    robot.estado = 'homing'
 
         current_time = time.time()
         if current_time >= old_time + p.dt:
@@ -134,78 +144,86 @@ if __name__ == "__main__":
                 robot.estado = 'standby'
 
             elif robot.estado == 'aprox' and not aprox_done:
-                q = robot.inverse_kinematics(robot.pos_aprox)
-                q1, q2, q3 = np.rad2deg(q[0][0]), np.rad2deg(q[1][0]), int(np.rad2deg(q[2][0]))
-                q1 = (q1 + 180) % 360 - 180
-                q1 = np.round(q1, 2)
-                q2 += 180
-                q2 = (q2 + 180) % 360 - 180
-                q2 = np.round(q2, 2)
-                q3 = q1+q2-180+q3
-                q3 = (q3 + 180) % 360 - 180
-                q3 = int(q3)
-                print(q1, q2, q3)
-                p_final = robot.forward_kinematics(q)
-                print('x:', np.round(p_final[0][0], 3), 'y:', np.round(p_final[1][0] + p.height_eje1, 3))
-                # input('confirm: ')
-                q1 += 5         # correccion M1
-                q3 += 5         # correccion M1
-                robot.goto(q1, q2, q3)
-                aprox_done = True
-                if p.manual:
-                    robot.estado = 'standby'
+                if init_aprox:
+                    aprox_time = time.time()
 
-            elif robot.estado == 'correct' and not correct_done:
-                ret, img = cap.read()
-                print('correct')
-                            
-                if ret:
-                    top_y = corregir(img)
-
-                    delta = robot.correccion(top_y)
-
-                    robot.pos_correct = robot.pos_aprox
-                    robot.pos_correct[1][0] += delta
-                    print('nueva pos:', robot.pos_correct)
-                    print('mover:', delta, 'cm')
-                    # input('confirmar:')
-                    q = robot.inverse_kinematics(robot.pos_correct)
-                    q1, q2, q3 = np.rad2deg(q[0][0]), np.rad2deg(q[1][0]), int(np.rad2deg(q[2][0]))
-                    q1 = (q1 + 180) % 360 - 180
-                    q1 = np.round(q1, 2)
-                    q2 += 180
-                    q2 = (q2 + 180) % 360 - 180
-                    q2 = np.round(q2, 2)
-                    q3 = q1+q2-180+q3
-                    q3 = (q3 + 180) % 360 - 180
-                    q3 = int(q3)
-                    q1 += 5         # correccion M1
-                    q3 += 5         # correccion M1
-
+                if time.time() - aprox_time > 2:
+                    q = robot.inverse_kinematics(robot.pos_aprox)
+                    q1, q2, q3 = robot.anguloreal2anguloarduino(q)
+                    # print(q1, q2, q3)
+                    # p_final = robot.forward_kinematics(q)
+                    # print('x:', np.round(p_final[0][0], 3), 'y:', np.round(p_final[1][0] + p.height_eje1, 3))
+                    # input('confirm: ')
                     robot.goto(q1, q2, q3)
-                    correct_done = True
+                    aprox_done = True
                     if p.manual:
                         robot.estado = 'standby'
-                else:
-                    print('no funciona camara')
+
+            elif robot.estado == 'correct' and not correct_done:
+                if init_correct:
+                    correct_time = time.time()
+                
+                if time.time() - correct_time > 2:
+                    ret, img = cap.read()
+                    print('correct')
+                                
+                    if ret:
+                        top_y = corregir(img)
+
+                        delta = robot.correccion(top_y)
+
+                        robot.pos_correct = robot.pos_aprox
+                        robot.pos_correct[1][0] += delta
+                        print('nueva pos:', robot.pos_correct)
+                        print('mover:', delta, 'cm')
+                        # input('confirmar:')
+                        q = robot.inverse_kinematics(robot.pos_correct)
+                        q1, q2, q3 = robot.anguloreal2anguloarduino(q)
+
+                        robot.goto(q1, q2, q3)
+                        correct_done = True
+                        if p.manual:
+                            robot.estado = 'standby'
+                    else:
+                        print('no funciona camara')
 
             elif robot.estado == 'enchufar' and not enchufar_done:
-                q1, q2, q3 = robot.enchufar()
-                # input('confirmar:')
+                if init_enchufar:
+                    enchufar_time = time.time()
 
-                robot.goto(q1, q2, q3)
+                if time.time() - enchufar_time > 2:
+                    q1, q2, q3 = robot.enchufar()
+                    # input('confirmar:')
 
-                enchufar_done = True
+                    robot.goto(q1, q2, q3)
 
-                if p.manual:
-                    robot.estado = 'standby'
+                    enchufar_done = True
+
+                    if p.manual:
+                        robot.estado = 'standby'
                 
             elif robot.estado == 'trigger':
-                robot.gatillo()
-                robot.estado = 'rest'
+                if init_trigger:
+                    trigger_time = time.time()
+
+                if time.time() - trigger_time > 2:
+                    robot.gatillo()
+                    if p.manual:
+                        robot.estado = 'standby'
+                    else:
+                        robot.estado = 'exit'
                 
-            elif robot.estado == 'exit':
-                pass
+            elif robot.estado == 'exit' and not exit_done:
+                if init_exit:
+                    exit_time = time.time()
+                
+                if time.time() - exit_time > 4:
+                    q = robot.inverse_kinematics(robot.pos_correct)
+                    q1, q2, q3 = robot.anguloreal2anguloarduino(q)
+
+                    robot.goto(q1, q2, q3)
+                    exit_done = True
+            
             elif robot.estado == 'test':
                 robot.goto(p.homing_angle_1-20, p.homing_angle_2+20, 100)
             

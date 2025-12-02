@@ -76,6 +76,21 @@ class Robot:
         # print(f"Enviado: {msg}")
         self.message_log.append(f"Enviado: {msg}")
         self.serial.write(msg)
+    
+    def anguloreal2anguloarduino(self, q):
+        q1, q2, q3 = np.rad2deg(q[0][0]), np.rad2deg(q[1][0]), int(np.rad2deg(q[2][0]))
+        q1 = (q1 + 180) % 360 - 180
+        q1 = np.round(q1, 2)
+        q2 += 180
+        q2 = (q2 + 180) % 360 - 180
+        q2 = np.round(q2, 2)
+        q3 = q1+q2-180+q3
+        q3 = (q3 + 180) % 360 - 180
+        q3 = int(q3)
+        q1 += 5         # correccion M1
+        q3 += 5         # correccion M1
+
+        return (q1, q2, q3)
 
     def home(self):
         msg = "AHOME;"
@@ -122,17 +137,7 @@ class Robot:
         self.pos_enchufe[1][0] += deltay
 
         q = self.inverse_kinematics(self.pos_enchufe)
-        q1, q2, q3 = np.rad2deg(q[0][0]), np.rad2deg(q[1][0]), int(np.rad2deg(q[2][0]))
-        q1 = (q1 + 180) % 360 - 180
-        q1 = np.round(q1, 2)
-        q2 += 180
-        q2 = (q2 + 180) % 360 - 180
-        q2 = np.round(q2, 2)
-        q3 = q1+q2-180+q3
-        q3 = (q3 + 180) % 360 - 180
-        q3 = int(q3)
-        q1 += 5         # correccion M1
-        q3 += 5         # correccion M1
+        q1, q2, q3 = self.anguloreal2anguloarduino(q)
 
         return (q1, q2, q3)
     
