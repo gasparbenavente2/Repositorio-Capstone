@@ -5,7 +5,7 @@ dt = 1 / 2 # Vel loop principal
 
 ###### Comunicacion serial ######
 ## ls /dev/tty.*
-port = "/dev/tty.usbmodem11301"
+port = "/dev/tty.usbmodem1301"
 #port = "COM3"
 baud_rate = 115200
 
