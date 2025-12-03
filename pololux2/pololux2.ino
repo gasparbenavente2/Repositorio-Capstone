@@ -65,11 +65,11 @@ float homing_theta2 = 60.8; //
 
 
 // Control macro
-bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
+bool homing = false; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = true;
 bool print_control = true; // imprimir señales en terminal
 float setpoint0 =  0;     // eslabon 1
-float setpoint1 =  -0;  // eslabon 2 //95 para entrada auto
+float setpoint1 =  0;  // eslabon 2 //95 para entrada auto
 bool new_message = false;
 
 
@@ -116,8 +116,8 @@ float KP_2 = 65;    // 30
 float KI_2 = 70;   // 9.5
 float KD_2 = 0.015;  // 0.01
 
-const int CMD_MAX = 600;   // max command magnitude you send to Sabertooth (adjust)
-const int CMD_MIN = -300;
+const int CMD_MAX = 300;   // max command magnitude you send to Sabertooth (adjust) // 600
+const int CMD_MIN = -150;   // -300
 
 const float sampleTime_s = 0.010f; // sample time in seconds (match your loop; 10 ms = 0.01)
 
@@ -264,7 +264,7 @@ void setup() {
   //delay(1000);
   // servo2.write(80);
 
-  delay(1000);
+  //delay(1000);
 }
 
 
@@ -508,13 +508,11 @@ void loop() {
         
         servo1.write(s1_command);
 
-        //control1int = +150;
-        control2int = -80;
-        //String cmd1 = "M1:" + String(control1int);
+        String cmd1 = "M1:" + String(control1int);
         String cmd2 = "M2:" + String(control2int);
         
                 
-        //Serial1.println(cmd1);
+        Serial1.println(cmd1);
         Serial1.println(cmd2);
 
         // Serial1.println("M2:");
