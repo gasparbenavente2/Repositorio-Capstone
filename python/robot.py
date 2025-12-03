@@ -126,14 +126,15 @@ class Robot:
 
     def aprox_geometry(self):
         """ encuentra posicion de aproximacion segun target """
-        return np.array([[self.pos_target[0][0] - 0.05], [self.pos_target[1][0] - 0.03], [np.deg2rad(-30)]])
+        return np.array([[self.pos_target[0][0] - 0.05], [self.pos_target[1][0] - 0.01], [np.deg2rad(-30)]])
     
     def correccion(self, top_y):
         """calcula cm a partir de diferencia en pixeles"""
         return (-top_y/100 + 5.8)/100
 
     def enchufar(self, ):
-        deltax, deltay = self.altura_hoyo_suelo/8 + 1.5/100, -0.01
+        # deltax, deltay = self.altura_hoyo_suelo/8 + 1.5/100, -0.01
+        deltax, deltay = 0.07, -0.01
         print('delta x', deltax)
         self.pos_enchufe = self.pos_correct
 

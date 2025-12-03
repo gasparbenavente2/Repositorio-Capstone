@@ -5,7 +5,7 @@ dt = 1 / 2 # Vel loop principal
 
 ###### Comunicacion serial ######
 ## ls /dev/tty.*
-port = "/dev/tty.usbmodem21201"
+port = "/dev/tty.usbmodem21301"
 #port = "COM3"
 baud_rate = 115200
 
@@ -19,14 +19,14 @@ r3 = 0.185
 r2_cam = r2 + 0.03
 r3_cam = r3 - 0.11
 
-d_tot = 0.71 # eje a hoyo   # 0.37 de palo a palo
+d_tot = 0.71 # eje a hoyo   # 0.39 de palo a palo
 height_eje1 = 0.238
 # Lookup table
 lup_a = 0.8934 # pendiente
 lup_b = 6.2105 # intercept
 
 # angulos homing: angulos absolutos a los que queda el brazo al hacer homing
-homing_angle_1 = 82.90  # desde horizontal hacia arriba
+homing_angle_1 = 79.40  # desde horizontal hacia arriba
 homing_angle_2 = 60.80  # desde eslabon 1 a eslabon 2   
 
 # modo manual
