@@ -154,7 +154,7 @@ if __name__ == "__main__":
 
                             robot.goto(p.homing_angle_1, p.homing_angle_2, robot.best_angle)
 
-                            input(f'Target encontrado a altura {robot.altura_hoyo_suelo}. Continuar?')
+                            # input(f'Target encontrado a altura {robot.altura_hoyo_suelo}. Continuar?')
                             if p.manual:
                                 robot.estado = 'rest'
                             else:

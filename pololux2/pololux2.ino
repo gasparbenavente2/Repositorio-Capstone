@@ -60,16 +60,16 @@ float revM0 = 0;
 float revM1 = 0;
 float degM0 = 0;
 float degM1 = 0;
-float homing_theta1 = 81.1; // Angulo al que queda theta 1 despues del homing 
+float homing_theta1 = 82.9; // Angulo al que queda theta 1 despues del homing 
 float homing_theta2 = 60.8; // 
 
 
 // Control macro
 bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
-float PID_control = false;
+float PID_control = true;
 bool print_control = true; // imprimir señales en terminal
 float setpoint0 =  0;     // eslabon 1
-float setpoint1 =  0;  // eslabon 2 //95 para entrada auto
+float setpoint1 =  -0;  // eslabon 2 //95 para entrada auto
 bool new_message = false;
 
 
@@ -97,8 +97,8 @@ int control1int = 0;
 bool m1_at_goto = false;
 
 float KP_1 = 30;
-float KI_1 = 42; // 2.0
-float KD_1 = 0.4; // 0.35
+float KI_1 = 40; // 2.0
+float KD_1 = 0.42; // 0.35
 //float KD_1 = 0.00;
 
 // ------------------- M2 -----------------------
@@ -258,6 +258,11 @@ void setup() {
   // Servo 1
   servo1.attach(9);
   //servo1.write(100);
+
+  //servo2.attach(8);
+  //servo2.write(95);
+  //delay(1000);
+  // servo2.write(80);
 
   delay(1000);
 }
@@ -503,34 +508,38 @@ void loop() {
         
         servo1.write(s1_command);
 
-
-        String cmd1 = "M1:" + String(control1int);
+        //control1int = +150;
+        control2int = -80;
+        //String cmd1 = "M1:" + String(control1int);
         String cmd2 = "M2:" + String(control2int);
-        Serial1.println(cmd2);
-        Serial1.println(cmd1);
         
+                
+        //Serial1.println(cmd1);
+        Serial1.println(cmd2);
+
+        // Serial1.println("M2:");
         if (print_control){
           Serial.print("pos 1: ");
           Serial.print(degM0);
           Serial.print(",  ");
-          Serial.print("s_p1: ");
-          Serial.print(setpoint0);
-          Serial.print(",  ");
+          // Serial.print("s_p1: ");
+          // Serial.print(setpoint0);
+          // Serial.print(",  ");
           Serial.print("pos 2: ");
           Serial.print(degM1);
           Serial.print(",  ");
-          Serial.print("s_p2: ");
-          Serial.print(setpoint1);
-          Serial.print(",  ");
+          // Serial.print("s_p2: ");
+          // Serial.print(setpoint1);
+          // Serial.print(",  ");
           Serial.print("output 1: ");
           Serial.print(control1int);
           Serial.print(",  ");
           Serial.print("output 2: ");
           Serial.print(control2int);
-          Serial.print(",  ");
-          Serial.print("command servo: ");
-          Serial.print(s1_command);
           Serial.println(",  ");
+          // Serial.print("command servo: ");
+          // Serial.print(s1_command);
+          // Serial.println(",  ");
         }
 
         time_ant = newtime;
