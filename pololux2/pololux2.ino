@@ -8,12 +8,18 @@ int s_com_para_90 = 132;        // Angulo comandado a servo para que pistola est
 int setpoint_servo = 0; // Setpoint servo, angulo absoluto
 int s1_command = 100;
 float s1_command_f = s1_command;
-int s1_target = s_com_para_90;
-float s1_increment = 0.5; // Velocidad del "culatazo"
+int s1_target = s1_command;
+float s1_increment = 1; // Velocidad del "culatazo"
 bool sent_at_goto = false; //Campino´s work
 String estado = "HOLA";
+
+
 // Servo 2
 Servo servo2;
+bool sol_trigger = false; // True cuando se solicita trigger
+bool trigger_started = false; // Indica partida de rutina de trigger
+unsigned long trigger_start_time;
+unsigned long current_trigger_time;
 
 // Definición de PINs.
 // Encoders
@@ -54,24 +60,24 @@ float revM0 = 0;
 float revM1 = 0;
 float degM0 = 0;
 float degM1 = 0;
-float homing_theta1 = 81.8; // Angulo al que queda theta 1 despues del homing 
-float homing_theta2 = 55.0; // 
+float homing_theta1 = 81.1; // Angulo al que queda theta 1 despues del homing 
+float homing_theta2 = 60.8; // 
 
 
 // Control macro
 bool homing = true; // Cuando se prende el robot, se mueve lentamente hasta llegar a los enconders
 float PID_control = false;
 bool print_control = true; // imprimir señales en terminal
-float setpoint0 =  -0;     // eslabon 1
-float setpoint1 =  -15;  // eslabon 2
+float setpoint0 =  0;     // eslabon 1
+float setpoint1 =  0;  // eslabon 2 //95 para entrada auto
 bool new_message = false;
 
 
 // homing
 bool homing_m1 = true;  // No modificar
 bool homing_m2 = true;  // No modificar
-int homing_m1_speed = 320;
-int homing_m2_speed = -80;
+int homing_m1_speed = 340;
+int homing_m2_speed = -100;
 
 
 // Variables control PID motoes
@@ -107,11 +113,11 @@ float degM1_old_old2;
 bool m2_at_goto = false;
 
 float KP_2 = 65;    // 30
-float KI_2 = 67;   // 9.5
+float KI_2 = 70;   // 9.5
 float KD_2 = 0.015;  // 0.01
 
-const int CMD_MAX = 500;   // max command magnitude you send to Sabertooth (adjust)
-const int CMD_MIN = -250;
+const int CMD_MAX = 600;   // max command magnitude you send to Sabertooth (adjust)
+const int CMD_MIN = -300;
 
 const float sampleTime_s = 0.010f; // sample time in seconds (match your loop; 10 ms = 0.01)
 
@@ -266,6 +272,8 @@ void loop() {
       new_message = true;
 
       if (estado == "GOTO"){
+        // Serial.print("GOTO RECIBIDO: ");
+        Serial.println(instruccion);
         firstPID = true;  // Resetea error, evita dKick.
         PID_control = true;
         homing = false;
@@ -278,6 +286,8 @@ void loop() {
         
         setpoint0 = q1;
         setpoint1 = q2;
+        Serial.print("Nuevo sp1: ");
+        Serial.println(setpoint0);
         m1_at_goto = false;
         m2_at_goto = false;
       }
@@ -294,15 +304,9 @@ void loop() {
         m2_at_goto = false;
       }
       else if (estado == "TRGR"){
-          // Servo 2
-          servo2.attach(8);
-          servo2.write(95);
-          delay(2000);
-          servo2.write(80);
-          // delay(2000);
-          
-          // delay(2000);
-          // servo2.write(80);
+        sol_trigger = true; // Trigger solicitado
+        m1_at_goto = false;
+        m2_at_goto = false;
       }
     }
   }
@@ -459,25 +463,47 @@ void loop() {
           degM1_old2 = degM1;
         }
 
+        // Manejo del trigger
+        if (sol_trigger){
+          if (!trigger_started){
+            trigger_start_time = millis();
+            trigger_started = true;
+            servo2.attach(8);
+            servo2.write(95);
+            Serial.println("Triggered");
+          }
+          
+          current_trigger_time = millis();
+          if (current_trigger_time - trigger_start_time > 2000){
+            // Pasaron dos segundos, volver trigger a pos original, volver 
+            servo2.write(80);
+            sol_trigger = false;
+            trigger_started = false;
+            Serial.println("Listo trigger");
+          }
+        }
+
         // PROBAR
         s1_target = servo_horizon_to_command_2(int(degM0), int(degM1), setpoint_servo);
-        //s1_target = servo_theta_3_to_command(90);
 
-        // if (s1_target - s1_command > 0){
-        //   // target mayor a command actual
-        //   s1_command_f = s1_command + s1_increment;
-        // }
-        // else if(s1_target - s1_command < 0){
-        //   // target menor a command actual
-        //   s1_command_f = s1_command - s1_increment;
-        // }
-        // else{
-        //   s1_command_f = s1_target;
-        // }
-        // s1_command = int(s1_command_f); // Trunca para abajo
-        // servo1.write(s1_command);
+        // Logica anti culatazo
+        if (s1_target - s1_command > 0){
+          // target mayor a command actual
+          s1_command_f = float(s1_command) + float(s1_increment);
+        }
+        else if(s1_target - s1_command < 0){
+          // target menor a command actual
+          s1_command_f = float(s1_command) - float(s1_increment);
+        }
+        else{
+          s1_command_f = float(s1_target);
+        }
+        s1_command = int(s1_command_f); // Trunca para abajo
 
-        servo1.write(s1_target);
+        
+        servo1.write(s1_command);
+
+
         String cmd1 = "M1:" + String(control1int);
         String cmd2 = "M2:" + String(control2int);
         Serial1.println(cmd2);
@@ -487,8 +513,14 @@ void loop() {
           Serial.print("pos 1: ");
           Serial.print(degM0);
           Serial.print(",  ");
+          Serial.print("s_p1: ");
+          Serial.print(setpoint0);
+          Serial.print(",  ");
           Serial.print("pos 2: ");
           Serial.print(degM1);
+          Serial.print(",  ");
+          Serial.print("s_p2: ");
+          Serial.print(setpoint1);
           Serial.print(",  ");
           Serial.print("output 1: ");
           Serial.print(control1int);
@@ -497,7 +529,7 @@ void loop() {
           Serial.print(control2int);
           Serial.print(",  ");
           Serial.print("command servo: ");
-          Serial.print(s1_target);
+          Serial.print(s1_command);
           Serial.println(",  ");
         }
 

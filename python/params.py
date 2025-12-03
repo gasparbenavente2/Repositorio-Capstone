@@ -5,7 +5,7 @@ dt = 1 / 2 # Vel loop principal
 
 ###### Comunicacion serial ######
 ## ls /dev/tty.*
-port = "/dev/tty.usbmodem1301"
+port = "/dev/tty.usbmodem11301"
 #port = "COM3"
 baud_rate = 115200
 
@@ -26,8 +26,15 @@ lup_a = 0.8934 # pendiente
 lup_b = 6.2105 # intercept
 
 # angulos homing: angulos absolutos a los que queda el brazo al hacer homing
-homing_angle_1 = 81.80  # desde horizontal hacia arriba
-homing_angle_2 = 55.00  # desde eslabon 1 a eslabon 2   
+homing_angle_1 = 81.10  # desde horizontal hacia arriba
+homing_angle_2 = 60.80  # desde eslabon 1 a eslabon 2   
 
 # modo manual
 manual = False
+partir_clear = True
+
+
+# Busqueda Hoyo
+max_search_angle = 0
+min_search_angle = -55
+bias_angulo_camara = 0.03   # Error sistematico en altura encontrada gracias a diferencia angulo camara

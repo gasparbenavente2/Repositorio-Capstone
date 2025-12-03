@@ -32,11 +32,14 @@ if __name__ == "__main__":
     init_enchufar = True
     init_trigger = True
     init_exit = True
+    init_clear = True
+
 
     aprox_done = False
     correct_done = False
     enchufar_done = False
     exit_done = False
+    clear_done = False
 
     old_time = time.time()
     while True:
@@ -51,12 +54,19 @@ if __name__ == "__main__":
                 if p.manual:
                     robot.estado = 'rest'
                 else:
-                    robot.estado = 'find_target'
+                    if p.partir_clear:
+                        robot.estado = 'clear'
+                    else:
+                        robot.estado = 'find_target'
+
             if "ATGOTO" in response and robot.estado == 'standby':
                 robot.estado = 'rest'
             if not p.manual:
                 if "ATGOTO" in response and robot.estado == 'aprox':
                     robot.estado = 'correct'
+                elif "ATGOTO" in response and robot.estado == 'clear':
+                    input("Iniciar rutina?")
+                    robot.estado = 'find_target'
                 elif "ATGOTO" in response and robot.estado == 'correct':
                     robot.estado = 'enchufar'
                 elif "ATGOTO" in response and robot.estado == 'enchufar':
@@ -91,6 +101,17 @@ if __name__ == "__main__":
 
                 pos = robot.forward_kinematics(robot.q)
                 print(pos)
+            
+            elif robot.estado == 'clear' and not clear_done:
+                "Robot se extiende completamente para requerimiento de 0.5 metros al auto"
+                if init_clear:
+                    clear_init_time = time.time()
+                    robot.goto_servo(p.homing_angle_1, p.homing_angle_2, 95)
+                    init_clear = False
+                
+                if time.time() - clear_init_time > 1.0:
+                    robot.goto(p.homing_angle_1, p.homing_angle_2 + 95, 95)
+                    clear_done = True
 
             elif robot.estado == 'find_target':
                 if init_find:
@@ -99,7 +120,7 @@ if __name__ == "__main__":
 
                 init_find = False
                 robot.best_angle = None
-                if time.time() - find_time > 4:
+                if time.time() - find_time > 5:
                     if robot.best_angle:
                         print('Listo con target')
                         robot.estado = 'rest'
@@ -133,7 +154,7 @@ if __name__ == "__main__":
 
                             robot.goto(p.homing_angle_1, p.homing_angle_2, robot.best_angle)
 
-                            print('Listo con target')
+                            input(f'Target encontrado a altura {robot.altura_hoyo_suelo}. Continuar?')
                             if p.manual:
                                 robot.estado = 'rest'
                             else:
@@ -146,8 +167,9 @@ if __name__ == "__main__":
             elif robot.estado == 'aprox' and not aprox_done:
                 if init_aprox:
                     aprox_time = time.time()
+                    init_aprox = False
 
-                if time.time() - aprox_time > 2:
+                if time.time() - aprox_time > 0:
                     q = robot.inverse_kinematics(robot.pos_aprox)
                     q1, q2, q3 = robot.anguloreal2anguloarduino(q)
                     # print(q1, q2, q3)
@@ -162,8 +184,9 @@ if __name__ == "__main__":
             elif robot.estado == 'correct' and not correct_done:
                 if init_correct:
                     correct_time = time.time()
+                    init_correct = False
                 
-                if time.time() - correct_time > 2:
+                if time.time() - correct_time > 0.5:
                     ret, img = cap.read()
                     print('correct')
                                 
@@ -178,6 +201,7 @@ if __name__ == "__main__":
                         print('mover:', delta, 'cm')
                         # input('confirmar:')
                         q = robot.inverse_kinematics(robot.pos_correct)
+                        robot.q_pos_correct = q
                         q1, q2, q3 = robot.anguloreal2anguloarduino(q)
 
                         robot.goto(q1, q2, q3)
@@ -190,9 +214,11 @@ if __name__ == "__main__":
             elif robot.estado == 'enchufar' and not enchufar_done:
                 if init_enchufar:
                     enchufar_time = time.time()
+                    init_enchufar = False
 
-                if time.time() - enchufar_time > 2:
+                if time.time() - enchufar_time > 0.5:
                     q1, q2, q3 = robot.enchufar()
+                    robot.q_pos_enchufar = np.array([[q1], [q2], [q3]])
                     # input('confirmar:')
 
                     robot.goto(q1, q2, q3)
@@ -205,8 +231,9 @@ if __name__ == "__main__":
             elif robot.estado == 'trigger':
                 if init_trigger:
                     trigger_time = time.time()
+                    init_trigger = False
 
-                if time.time() - trigger_time > 2:
+                if time.time() - trigger_time > 0.5:
                     robot.gatillo()
                     if p.manual:
                         robot.estado = 'standby'
@@ -216,12 +243,15 @@ if __name__ == "__main__":
             elif robot.estado == 'exit' and not exit_done:
                 if init_exit:
                     exit_time = time.time()
+                    init_exit = False
                 
                 if time.time() - exit_time > 4:
-                    q = robot.inverse_kinematics(robot.pos_correct)
-                    q1, q2, q3 = robot.anguloreal2anguloarduino(q)
-
-                    robot.goto(q1, q2, q3)
+                    #q = robot.q_pos_correct
+                    #q1, q2, q3 = robot.anguloreal2anguloarduino(q)
+                    q1_exit = robot.q_pos_enchufar[0][0]
+                    q2_exit = robot.q_pos_enchufar[1][0]
+                    q3_exit = robot.q_pos_enchufar[2][0]
+                    robot.goto(q1_exit + 5, q2 - 4, q3)
                     exit_done = True
             
             elif robot.estado == 'test':

@@ -26,8 +26,8 @@ class Robot:
 
         # find_target
         self.diff_list = []
-        self.min_angle = -50
-        self.max_angle = -5
+        self.min_angle = p.min_search_angle
+        self.max_angle = p.max_search_angle
         self.best_angle = None # grados respecto a horizontal
         self.pos_target = None
         self.altura_hoyo_suelo = None
@@ -43,6 +43,10 @@ class Robot:
 
         self.message_log = message_log
 
+        self.q_pos_correct = None
+
+        self.q_pos_enchufar = None
+
         self.update_pos()
     
     def goto(self, q1, q2, q3):
@@ -57,7 +61,7 @@ class Robot:
 
         msg = f"AGOTO {formatted_q1} {formatted_q2} {formatted_q3};"
         msg = msg.encode("utf-8")
-        # print(f"Enviado: {msg}")
+        print(f"Enviado: {msg}")
         self.message_log.append(f"Enviado: {msg}")
         self.serial.write(msg)
 
@@ -118,7 +122,7 @@ class Robot:
         height_hoyo = py + y
         print(height_hoyo + p.height_eje1)
 
-        return np.array([[p.d_tot], [height_hoyo + 0.06]])          # correccion camara
+        return np.array([[p.d_tot], [height_hoyo + p.bias_angulo_camara]])          # correccion camara
 
     def aprox_geometry(self):
         """ encuentra posicion de aproximacion segun target """
@@ -249,7 +253,7 @@ class Robot:
     def inverse_kinematics(self, p_target: np.array):
         start_time = time.time()
         iter_lim = 1000
-        precision = 1e-4
+        precision = 1e-6
         # qk = self.
         qk = np.array([[np.deg2rad(p.homing_angle_1)], [np.deg2rad(p.homing_angle_2) - np.pi], [np.deg2rad(-30)]])
         k = 0   # num of iterations
